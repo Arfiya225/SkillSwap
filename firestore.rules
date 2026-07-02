@@ -61,6 +61,30 @@ service cloud.firestore {
         );
         allow update, delete: if false;
       }
+
+      match /meetings/{meetingId} {
+        allow read, write: if request.auth != null && (
+          request.auth.uid in get(/databases/$(database)/documents/learningRooms/$(roomId)).data.participants
+        );
+      }
+
+      match /studyPlans/{planId} {
+        allow read, write: if request.auth != null && (
+          request.auth.uid in get(/databases/$(database)/documents/learningRooms/$(roomId)).data.participants
+        );
+      }
+
+      match /sessionSummaries/{summaryId} {
+        allow read, write: if request.auth != null && (
+          request.auth.uid in get(/databases/$(database)/documents/learningRooms/$(roomId)).data.participants
+        );
+      }
+    }
+
+    // Notifications Collection Rules
+    match /notifications/{notificationId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null; // Allowing users to trigger alerts for others
     }
   }
 }

@@ -78,6 +78,7 @@ import {
   X,
   Video,
   Sparkles,
+  Map,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -531,6 +532,9 @@ function RoomWorkspace({ params }: PageProps) {
           <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             {([
               { id: "overview", label: "Overview", icon: BookOpen },
+              { id: "meetings", label: "Meetings", icon: Video },
+              { id: "study-plan", label: "AI Study Path", icon: Map },
+              { id: "summaries", label: "AI Summaries", icon: Sparkles },
               { id: "notes", label: "Shared Notes", icon: FileText },
               { id: "resources", label: "Resources", icon: Paperclip },
               { id: "tasks", label: "Tasks", icon: CheckSquare },
@@ -967,7 +971,121 @@ function RoomWorkspace({ params }: PageProps) {
             </div>
           )}
 
+          {/* =================================================== */}
+          {/* 7. MEETINGS TAB */}
+          {/* =================================================== */}
+          {activeTab === "meetings" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-100">Live Workspace Sessions</h3>
+                  <p className="text-xs text-slate-400">Schedule and manage face-to-face video syncs with your partner.</p>
+                </div>
+                <button
+                  onClick={() => setIsMeetingSchedulerOpen(true)}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-violet-500/20 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  Schedule Meet
+                </button>
+              </div>
+
+              {meetings.length === 0 ? (
+                 <div className="py-12 border border-white/5 bg-slate-950/20 rounded-2xl">
+                    <EmptyState
+                      icon={Video}
+                      title="No scheduled meetings"
+                      description="Create a live session to sync up, discuss blockers, or review code."
+                    />
+                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {meetings.map((meeting) => (
+                    <MeetingCard
+                      key={meeting.id}
+                      meeting={meeting}
+                      currentUserId={user?.uid || ""}
+                      participantProfiles={room.participantProfiles || {}}
+                      onCancel={async (id) => {
+                         await cancelMeeting(roomId!, id);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =================================================== */}
+          {/* 8. STUDY PLAN TAB */}
+          {/* =================================================== */}
+          {activeTab === "study-plan" && (
+            <div className="space-y-6">
+              <StudyPlanCard
+                studyPlan={studyPlan}
+                onGenerate={async (skill, currentLevel, targetLevel, weeklyHours) => {
+                  try {
+                    setGeneratingStudyPlan(true);
+                    await generateStudyPlan(roomId!, user?.uid || "", skill, currentLevel, targetLevel, weeklyHours);
+                  } catch (err: any) {
+                    console.error(err);
+                    toast.error(err.message || "Failed to generate study plan.");
+                  } finally {
+                    setGeneratingStudyPlan(false);
+                  }
+                }}
+                loading={generatingStudyPlan}
+                apiKeyMissing={geminiKeyMissing}
+              />
+            </div>
+          )}
+
+          {/* =================================================== */}
+          {/* 9. SUMMARIES TAB */}
+          {/* =================================================== */}
+          {activeTab === "summaries" && (
+            <div className="space-y-6">
+              <SessionSummaryCard
+                summaries={summaries}
+                onGenerate={async () => {
+                  try {
+                    setGeneratingSummary(true);
+                    await generateSessionSummary(roomId!);
+                  } catch (err: any) {
+                    console.error(err);
+                    toast.error(err.message || "Failed to generate session summary.");
+                  } finally {
+                    setGeneratingSummary(false);
+                  }
+                }}
+                loading={generatingSummary}
+                apiKeyMissing={geminiKeyMissing}
+              />
+            </div>
+          )}
+
         </main>
+
+        {/* Meeting Scheduler Overlay */}
+        {isMeetingSchedulerOpen && (
+          <MeetingScheduler
+            roomParticipants={room.participants}
+            participantProfiles={room.participantProfiles || {}}
+            onSchedule={async (title, description, startISO, endISO) => {
+               await scheduleMeeting(
+                 roomId!,
+                 title,
+                 description,
+                 user?.uid || "",
+                 room.participants,
+                 startISO,
+                 endISO
+               );
+            }}
+            onClose={() => setIsMeetingSchedulerOpen(false)}
+          />
+        )}
+
       </div>
     </ProtectedRoute>
   );

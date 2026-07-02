@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export interface MeetingProvider {
   createMeeting(title: string, description: string, startTime: string, endTime: string): Promise<string>;
   updateMeeting(meetingId: string, title: string, description: string, startTime: string, endTime: string): Promise<string>;
@@ -6,10 +7,10 @@ export interface MeetingProvider {
 
 export class LocalMeetingProvider implements MeetingProvider {
   async createMeeting(
-    title: string,
-    description: string,
-    startTime: string,
-    endTime: string
+    _title: string,
+    _description: string,
+    _startTime: string,
+    _endTime: string
   ): Promise<string> {
     const id = Math.random().toString(36).substring(2, 15);
     return `https://skillswap.local/meeting/${id}`;
@@ -17,10 +18,10 @@ export class LocalMeetingProvider implements MeetingProvider {
 
   async updateMeeting(
     meetingId: string,
-    title: string,
-    description: string,
-    startTime: string,
-    endTime: string
+    _title: string,
+    _description: string,
+    _startTime: string,
+    _endTime: string
   ): Promise<string> {
     // If the meeting link exists already, return it; otherwise generate a new local link
     if (meetingId.startsWith("http")) {
@@ -29,7 +30,7 @@ export class LocalMeetingProvider implements MeetingProvider {
     return `https://skillswap.local/meeting/${meetingId}`;
   }
 
-  async cancelMeeting(meetingId: string): Promise<void> {
+  async cancelMeeting(_meetingId: string): Promise<void> {
     // Local provider cancellation logic is a no-op
   }
 }

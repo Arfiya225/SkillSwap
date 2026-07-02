@@ -13,8 +13,6 @@ interface MeetingSchedulerProps {
 }
 
 export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
-  roomParticipants,
-  participantProfiles,
   onSchedule,
   onClose,
 }) => {

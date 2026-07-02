@@ -1,17 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { User, Menu, X, LogOut, HeartHandshake } from "lucide-react";
+import { User, Menu, X, LogOut, HeartHandshake, Bell } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+
+import { NotificationCenter } from "./ui/NotificationCenter";
+import { subscribeToNotifications } from "@/services/notifications";
+import { Notification } from "@/types/notification";
 
 export const Navbar: React.FC = () => {
   const { user, dbUser, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    const unsubscribe = subscribeToNotifications(user.uid, (data) => {
+      setNotifications(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -63,9 +80,30 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Desktop User Info / Actions */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-4 relative">
           {user && (
             <>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-slate-400 hover:text-violet-400 rounded-xl hover:bg-slate-900/50 border border-transparent hover:border-white/5 transition-all duration-200 cursor-pointer"
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.filter((n) => !n.read).length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.8)] animate-pulse" />
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute top-full right-16 z-50">
+                  <NotificationCenter
+                    userId={user.uid}
+                    notifications={notifications}
+                    onClose={() => setShowNotifications(false)}
+                  />
+                </div>
+              )}
+
+              <div className="w-px h-6 bg-slate-800" />
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-semibold text-slate-300 truncate max-w-[120px]">
                   {dbUser?.name || user.displayName || "Learner"}

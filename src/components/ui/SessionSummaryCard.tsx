@@ -81,7 +81,7 @@ export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Workspace AI Summarizer</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Generate instant workspace wrap-ups! Our AI reads your room's shared notes, tasks, and uploaded materials to outline key takeaways and goals.
+            Generate instant workspace wrap-ups! Our AI reads your room&apos;s shared notes, tasks, and uploaded materials to outline key takeaways and goals.
           </p>
         </div>
 

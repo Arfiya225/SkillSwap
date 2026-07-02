@@ -66,7 +66,6 @@ export async function updateSwapRequestStatus(
     const swapRequestRef = doc(db, "swapRequests", requestId);
     let createdRoomId: string | null = null;
     let senderId: string | null = null;
-    let offeredSkill = "";
     let requestedSkill = "";
 
     await runTransaction(db, async (transaction) => {
@@ -81,7 +80,6 @@ export async function updateSwapRequestStatus(
       }
 
       senderId = swapData.senderId;
-      offeredSkill = swapData.offeredSkill;
       requestedSkill = swapData.requestedSkill;
 
       // 1. Update swap request status

@@ -119,7 +119,6 @@ export async function updateMeeting(
     
     // If updating times, regenerate link if required by provider
     if (updates.startTime || updates.endTime) {
-      const currentDoc = doc(db, "meetings", meetingId);
       // Let provider update if it needs to
       await activeMeetingProvider.updateMeeting(
         meetingId,

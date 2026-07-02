@@ -6,9 +6,7 @@ import { GlassCard } from "./GlassCard";
 import {
   Sparkles,
   BookOpen,
-  Calendar,
   CheckCircle,
-  HelpCircle,
   TrendingUp,
   FileText,
   Bookmark,
