@@ -12,12 +12,23 @@ import { Resource, ResourceType } from "@/types/resource";
 import { Task } from "@/types/task";
 import { Activity as ActivityType } from "@/types/activity";
 
+// New Types
+import { Meeting } from "@/types/meeting";
+import { StudyPlan } from "@/types/studyPlan";
+import { SessionSummary } from "@/types/sessionSummary";
+
 // Reusable components
 import { NotesEditor } from "@/components/ui/NotesEditor";
 import { ResourceCard } from "@/components/ui/ResourceCard";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { ProgressWidget } from "@/components/ui/ProgressWidget";
 import { ActivityFeed } from "@/components/ui/ActivityFeed";
+
+// New UI Components
+import { MeetingCard } from "@/components/ui/MeetingCard";
+import { MeetingScheduler } from "@/components/ui/MeetingScheduler";
+import { StudyPlanCard } from "@/components/ui/StudyPlanCard";
+import { SessionSummaryCard } from "@/components/ui/SessionSummaryCard";
 
 // Collaboration Services
 import {
@@ -32,6 +43,21 @@ import {
   subscribeToActivities,
   logActivity,
 } from "@/services/collaboration";
+
+// New Services
+import {
+  subscribeToMeetings,
+  scheduleMeeting,
+  cancelMeeting,
+} from "@/services/meetings";
+import {
+  subscribeToStudyPlan,
+  generateStudyPlan,
+} from "@/services/study-plans";
+import {
+  subscribeToSessionSummaries,
+  generateSessionSummary,
+} from "@/services/session-summary";
 
 import {
   BookOpen,
@@ -50,6 +76,8 @@ import {
   TrendingUp,
   User,
   X,
+  Video,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -60,7 +88,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type RoomTab = "overview" | "notes" | "resources" | "tasks" | "progress" | "activity";
+type RoomTab = "overview" | "notes" | "resources" | "tasks" | "progress" | "activity" | "meetings" | "study-plan" | "summaries";
 
 export default function RoomPage({ params }: PageProps) {
   return (
@@ -98,6 +126,19 @@ function RoomWorkspace({ params }: PageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activities, setActivities] = useState<ActivityType[]>([]);
 
+  // New Realtime lists states
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
+  const [summaries, setSummaries] = useState<SessionSummary[]>([]);
+
+  // Meetings scheduler overlay state
+  const [isMeetingSchedulerOpen, setIsMeetingSchedulerOpen] = useState(false);
+
+  // AI Generation state
+  const [generatingStudyPlan, setGeneratingStudyPlan] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [geminiKeyMissing, setGeminiKeyMissing] = useState(false);
+
   // Local Form states (Create Task & Resource)
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
@@ -115,6 +156,22 @@ function RoomWorkspace({ params }: PageProps) {
 
   // Filters
   const [taskFilterStatus, setTaskFilterStatus] = useState<string>("all");
+
+  // Check if GEMINI_API_KEY is missing on mount
+  useEffect(() => {
+    async function checkApiKey() {
+      try {
+        const res = await fetch("/api/study-plan");
+        if (res.ok) {
+          const data = await res.json();
+          setGeminiKeyMissing(!data.keyConfigured);
+        }
+      } catch (err) {
+        console.error("Error checking Gemini API key config:", err);
+      }
+    }
+    checkApiKey();
+  }, []);
 
   // 1. Resolve room ID parameter
   useEffect(() => {
@@ -171,10 +228,25 @@ function RoomWorkspace({ params }: PageProps) {
       setActivities(data);
     });
 
+    const unsubMeetings = subscribeToMeetings(roomId, (data) => {
+      setMeetings(data);
+    });
+
+    const unsubStudyPlan = subscribeToStudyPlan(roomId, (data) => {
+      setStudyPlan(data);
+    });
+
+    const unsubSummaries = subscribeToSessionSummaries(roomId, (data) => {
+      setSummaries(data);
+    });
+
     return () => {
       unsubResources();
       unsubTasks();
       unsubActivities();
+      unsubMeetings();
+      unsubStudyPlan();
+      unsubSummaries();
     };
   }, [roomId, room]);
 

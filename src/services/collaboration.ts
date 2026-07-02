@@ -15,6 +15,7 @@ import { Note } from "@/types/note";
 import { Resource, ResourceType } from "@/types/resource";
 import { Task } from "@/types/task";
 import { Activity, ActivityType } from "@/types/activity";
+import { createNotification } from "./notifications";
 
 // ==========================================
 // 1. SHARED NOTES
@@ -236,6 +237,17 @@ export async function createTask(
       createdAt: serverTimestamp(),
     });
 
+    // Notify assignee if not the creator
+    if (assignedTo !== createdBy) {
+      await createNotification(
+        assignedTo,
+        "New Task Assigned",
+        `You have been assigned the task: "${title.trim()}" by ${createdByName}.`,
+        "task_assigned",
+        `/rooms/${roomId}?tab=tasks`
+      );
+    }
+
     return newDoc.id;
   } catch (error) {
     console.error("Error creating task:", error);
@@ -254,6 +266,17 @@ export async function updateTask(
   try {
     const taskRef = doc(db, "learningRooms", roomId, "tasks", taskId);
     await updateDoc(taskRef, updates);
+
+    // Notify assignee if task assignment changed
+    if (updates.assignedTo) {
+      await createNotification(
+        updates.assignedTo,
+        "Task Reassigned",
+        `You have been assigned the task: "${updates.title || "Roadmap Task"}".`,
+        "task_assigned",
+        `/rooms/${roomId}?tab=tasks`
+      );
+    }
   } catch (error) {
     console.error("Error updating task:", error);
     throw error;

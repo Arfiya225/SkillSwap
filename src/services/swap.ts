@@ -11,6 +11,7 @@ import {
 import { db } from "@/firebase/config";
 import { SwapRequest, SwapRequestWithProfiles } from "@/types/swap";
 import { getUserProfile } from "./profile";
+import { createNotification } from "./notifications";
 
 /**
  * Send a new swap request from one user to another.
@@ -38,6 +39,15 @@ export async function sendSwapRequest(
     };
     
     await setDoc(newDocRef, requestData);
+
+    // Notify receiver
+    await createNotification(
+      receiverId,
+      "New Swap Request",
+      `You received a swap proposal: offered "${offeredSkill}" for your "${requestedSkill}".`,
+      "swap_request",
+      "/dashboard/requests?tab=incoming"
+    );
   } catch (error) {
     console.error("Error sending swap request:", error);
     throw error;
@@ -55,6 +65,9 @@ export async function updateSwapRequestStatus(
   try {
     const swapRequestRef = doc(db, "swapRequests", requestId);
     let createdRoomId: string | null = null;
+    let senderId: string | null = null;
+    let offeredSkill = "";
+    let requestedSkill = "";
 
     await runTransaction(db, async (transaction) => {
       const swapDoc = await transaction.get(swapRequestRef);
@@ -66,6 +79,10 @@ export async function updateSwapRequestStatus(
       if (swapData.status !== "pending") {
         throw new Error(`Swap request is already ${swapData.status}`);
       }
+
+      senderId = swapData.senderId;
+      offeredSkill = swapData.offeredSkill;
+      requestedSkill = swapData.requestedSkill;
 
       // 1. Update swap request status
       transaction.update(swapRequestRef, { status });
@@ -81,9 +98,24 @@ export async function updateSwapRequestStatus(
           participants: [swapData.senderId, swapData.receiverId],
           swapRequestId: requestId,
           createdAt: serverTimestamp(),
+          swapRequestDetails: {
+            offeredSkill: swapData.offeredSkill,
+            requestedSkill: swapData.requestedSkill,
+          },
         });
       }
     });
+
+    // Notify sender when request is accepted
+    if (status === "accepted" && createdRoomId && senderId) {
+      await createNotification(
+        senderId,
+        "Swap Proposal Accepted!",
+        `Your swap request for "${requestedSkill}" has been accepted! Collaborative workspace is active.`,
+        "request_accepted",
+        `/rooms/${createdRoomId}`
+      );
+    }
 
     return createdRoomId;
   } catch (error) {
