@@ -8,14 +8,12 @@ import {
   query,
   orderBy,
   onSnapshot,
-  getDoc,
-  Timestamp,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/firebase/config";
 import { Note } from "@/types/note";
 import { Resource, ResourceType } from "@/types/resource";
-import { Task, TaskStatus } from "@/types/task";
+import { Task } from "@/types/task";
 import { Activity, ActivityType } from "@/types/activity";
 
 // ==========================================

@@ -5,8 +5,6 @@ import { Task, TaskStatus } from "@/types/task";
 import { useAuth } from "@/context/AuthContext";
 import { GlassCard } from "./GlassCard";
 import {
-  CheckSquare,
-  Clock,
   User,
   Trash2,
   Edit3,

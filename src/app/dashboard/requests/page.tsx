@@ -81,7 +81,7 @@ export default function RequestsPage() {
   const handleAccept = async (id: string) => {
     setActionLoadingId(id);
     try {
-      const roomId = await updateSwapRequestStatus(id, "accepted");
+      await updateSwapRequestStatus(id, "accepted");
       toast.success("Request accepted! Learning room created.");
     } catch (err: any) {
       console.error(err);

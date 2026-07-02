@@ -2,12 +2,10 @@ import {
   collection,
   doc,
   setDoc,
-  updateDoc,
   serverTimestamp,
   query,
   where,
   onSnapshot,
-  getDoc,
   runTransaction,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";

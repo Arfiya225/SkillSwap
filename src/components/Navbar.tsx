@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles, User, Menu, X, LogOut, HeartHandshake, HelpCircle } from "lucide-react";
+import { User, Menu, X, LogOut, HeartHandshake } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";

@@ -4,14 +4,12 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Navbar } from "@/components/Navbar";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { getLearningRoom } from "@/services/room";
 import { LearningRoomWithDetails } from "@/types/room";
-import { Note } from "@/types/note";
 import { Resource, ResourceType } from "@/types/resource";
-import { Task, TaskStatus } from "@/types/task";
+import { Task } from "@/types/task";
 import { Activity as ActivityType } from "@/types/activity";
 
 // Reusable components
@@ -43,16 +41,12 @@ import {
   Paperclip,
   CheckSquare,
   ArrowLeft,
-  ChevronRight,
-  Sparkles,
   Lock,
   ArrowRightLeft,
   Plus,
   Link as LinkIcon,
-  Upload,
   Activity,
   ListFilter,
-  Loader2,
   TrendingUp,
   User,
   X,

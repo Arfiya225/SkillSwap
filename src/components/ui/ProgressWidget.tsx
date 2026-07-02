@@ -4,8 +4,6 @@ import React from "react";
 import { Task } from "@/types/task";
 import { GlassCard } from "./GlassCard";
 import {
-  CheckSquare,
-  Clock,
   ClipboardList,
   Sparkles,
   TrendingUp,

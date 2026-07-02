@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Sparkles, HeartHandshake, ShieldAlert, Library, MessageSquareCode, ArrowRight, ArrowRightLeft } from "lucide-react";
+import { Sparkles, HeartHandshake, Library, MessageSquareCode, ArrowRight, ArrowRightLeft } from "lucide-react";
 
 export default function LandingPage() {
   const { user } = useAuth();
