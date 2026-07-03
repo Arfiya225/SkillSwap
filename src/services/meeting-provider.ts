@@ -1,33 +1,32 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 export interface MeetingProvider {
-  createMeeting(title: string, description: string, startTime: string, endTime: string): Promise<string>;
-  updateMeeting(meetingId: string, title: string, description: string, startTime: string, endTime: string): Promise<string>;
+  createMeeting(roomId: string, title: string, description: string, startTime: string, endTime: string): Promise<string>;
+  updateMeeting(roomId: string, meetingId: string, title: string, description: string, startTime: string, endTime: string): Promise<string>;
   cancelMeeting(meetingId: string): Promise<void>;
 }
 
 export class LocalMeetingProvider implements MeetingProvider {
   async createMeeting(
+    roomId: string,
     _title: string,
     _description: string,
     _startTime: string,
     _endTime: string
   ): Promise<string> {
-    const id = Math.random().toString(36).substring(2, 15);
-    return `https://skillswap.local/meeting/${id}`;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return origin ? `${origin}/rooms/${roomId}` : `/rooms/${roomId}`;
   }
 
   async updateMeeting(
+    roomId: string,
     meetingId: string,
     _title: string,
     _description: string,
     _startTime: string,
     _endTime: string
   ): Promise<string> {
-    // If the meeting link exists already, return it; otherwise generate a new local link
-    if (meetingId.startsWith("http")) {
-      return meetingId;
-    }
-    return `https://skillswap.local/meeting/${meetingId}`;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return origin ? `${origin}/rooms/${roomId}` : `/rooms/${roomId}`;
   }
 
   async cancelMeeting(_meetingId: string): Promise<void> {

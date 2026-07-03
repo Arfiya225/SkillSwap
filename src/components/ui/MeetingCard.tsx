@@ -146,27 +146,27 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
           )}
         </div>
 
-        {/* Action Button */}
-        {meeting.status === "scheduled" ? (
-          <a
-            href={meeting.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full mt-2"
+      {/* Action Button */}
+      {meeting.status === "scheduled" ? (
+        <a
+          href={meeting.meetingLink.includes("skillswap.local") ? `/rooms/${meeting.roomId}` : meeting.meetingLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full mt-2"
+        >
+          <button
+            disabled={!isMeetingActive()}
+            className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              isMeetingActive()
+                ? "bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:opacity-90 shadow-md shadow-violet-500/10"
+                : "bg-slate-950/40 border border-white/5 text-slate-500 cursor-not-allowed"
+            }`}
           >
-            <button
-              disabled={!isMeetingActive()}
-              className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                isMeetingActive()
-                  ? "bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:opacity-90 shadow-md shadow-violet-500/10"
-                  : "bg-slate-950/40 border border-white/5 text-slate-500 cursor-not-allowed"
-              }`}
-            >
-              <Video className="w-4 h-4" />
-              <span>Join Session</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          </a>
+            <Video className="w-4 h-4" />
+            <span>Join Session</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </a>
         ) : (
           <div className="w-full text-center py-2 text-[10px] text-slate-600 font-bold uppercase tracking-wider mt-2 border border-dashed border-white/5 rounded-xl">
             {meeting.status === "completed" ? "Session Concluded" : "Session Cancelled"}

@@ -59,8 +59,8 @@ export async function scheduleMeeting(
     const meetingsRef = collection(db, "meetings");
     const newDoc = doc(meetingsRef);
 
-    // Generate shareable link
     const meetingLink = await activeMeetingProvider.createMeeting(
+      roomId,
       title,
       description,
       startTime,
@@ -117,10 +117,10 @@ export async function updateMeeting(
   try {
     const meetingRef = doc(db, "meetings", meetingId);
     
-    // If updating times, regenerate link if required by provider
     if (updates.startTime || updates.endTime) {
       // Let provider update if it needs to
       await activeMeetingProvider.updateMeeting(
+        roomId,
         meetingId,
         updates.title || "",
         updates.description || "",
