@@ -10,6 +10,7 @@ import {
   Sparkles,
   Circle,
   Calendar,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -57,7 +58,19 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       icon: Sparkles,
       color: "bg-pink-500/10 border-pink-500/20 text-pink-400",
     },
-  };
+    verification_submitted: {
+      icon: Inbox,
+      color: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
+    },
+    verification_approved: {
+      icon: CheckCircle,
+      color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+    },
+    verification_rejected: {
+      icon: XCircle,
+      color: "bg-rose-500/10 border-rose-500/20 text-rose-400",
+    },
+  } as Record<string, any>;
 
   const currentConfig = configs[notification.type] || {
     icon: Calendar,

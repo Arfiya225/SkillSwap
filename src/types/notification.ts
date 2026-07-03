@@ -3,7 +3,10 @@ export type NotificationType =
   | "request_accepted"
   | "meeting_scheduled"
   | "task_assigned"
-  | "study_plan_generated";
+  | "study_plan_generated"
+  | "verification_submitted"
+  | "verification_approved"
+  | "verification_rejected";
 
 export interface Notification {
   id: string;

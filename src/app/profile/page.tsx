@@ -13,6 +13,8 @@ import { updateUserProfile } from "@/services/profile";
 import { DbUser, SkillCanTeach, SkillWantToLearn } from "@/types/user";
 import { User, Library, Globe, Save } from "lucide-react";
 import toast from "react-hot-toast";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import Link from "next/link";
 
 type ProfileTab = "personal" | "skills" | "social";
 
@@ -146,14 +148,20 @@ export default function ProfilePage() {
                       Personal Information
                     </h3>
                     
-                    <div className="flex flex-col sm:flex-row items-center gap-6 pb-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-800">
                       <AvatarUploader
                         currentAvatar={avatar}
                         name={name}
                         onUploadSuccess={(url) => setAvatar(url)}
                       />
-                      <div className="text-center sm:text-left">
-                        <p className="text-sm font-bold text-slate-200">Profile Photo</p>
+                      <div className="text-center sm:text-left flex-grow">
+                        <p className="text-sm font-bold text-slate-200 mb-2">Profile Photo & Trust</p>
+                        <div className="flex items-center justify-center sm:justify-start space-x-3 mb-2">
+                          <VerificationBadge level={dbUser?.verificationLevel || "Basic"} showLabel />
+                          <Link href="/profile/verification" className="text-xs text-indigo-400 hover:text-indigo-300">
+                            Manage Verification
+                          </Link>
+                        </div>
                         <p className="text-xs text-slate-500 max-w-[240px] mt-1 leading-relaxed">
                           Clear square photo recommended. Max 2MB file size.
                         </p>

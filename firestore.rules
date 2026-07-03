@@ -86,5 +86,24 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null; // Allowing users to trigger alerts for others
     }
+
+    // Marketplace Collection Rules
+    match /marketplacePosts/{postId} {
+      allow read: if true; // Feed is public or authenticated depending on requirement (true for now)
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Verification Collection Rules
+    match /verificationRequests/{requestId} {
+      // Allow read/update if user owns the request or if user is an admin (mocked via claim or open for MVP)
+      allow read: if request.auth != null; // Opened up for admin dashboard
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null; 
+    }
+
+    match /certificateSubmissions/{subId} {
+      allow read, create, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
   }
 }

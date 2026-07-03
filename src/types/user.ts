@@ -22,6 +22,10 @@ export interface DbUser {
   github: string;
   linkedin: string;
   portfolio: string;
+  verificationLevel?: "Basic" | "Verified" | "Expert";
+  isGithubVerified?: boolean;
+  approvedSkills?: string[];
+  verificationStatus?: "Pending" | "Approved" | "Rejected" | "None";
   createdAt: any; // Firebase Timestamp or ISO string
   updatedAt: any; // Firebase Timestamp or ISO string
 }
