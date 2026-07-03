@@ -80,3 +80,21 @@ export async function rejectVerification(requestId: string, userId: string, admi
     "/profile/verification"
   );
 }
+
+export async function updateUserStatus(userId: string, status: "Active" | "Suspended" | "Banned"): Promise<void> {
+  const userRef = doc(db, "Users", userId);
+  await updateDoc(userRef, {
+    status
+  });
+
+  if (status !== "Active") {
+    await createNotification(
+      userId,
+      `Account ${status}`,
+      `Your account has been marked as ${status} by an administrator.`,
+      "system_alert" as any,
+      "/"
+    );
+  }
+}
+
