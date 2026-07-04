@@ -10,13 +10,11 @@ import toast from "react-hot-toast";
 interface AvatarUploaderProps {
   currentAvatar: string;
   onUploadSuccess: (url: string) => void;
-  name: string;
 }
 
 export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
   currentAvatar,
   onUploadSuccess,
-  name,
 }) => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,16 +57,11 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
     } catch (error: any) {
       console.error("Firebase Storage Upload Error:", error);
       
-      // Fallback: Check if it's a mock error or permission error
-      if (error?.code === "storage/unauthorized" || error?.message?.includes("mock")) {
-        toast.error("Upload restricted. (Check Storage Security Rules/Credentials)", { id: toastId });
+      // Check if it's a permission error
+      if (error?.code === "storage/unauthorized") {
+        toast.error("Upload restricted. Check Storage Security Rules/Credentials", { id: toastId });
       } else {
-        toast.error("Error uploading image. Using simulated URL.", { id: toastId });
-        
-        // Mock fallback to allow working in local mock environments:
-        // Use standard Dicebear avatar based on name hash
-        const mockUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || user.uid)}`;
-        onUploadSuccess(mockUrl);
+        toast.error("Error uploading image.", { id: toastId });
       }
     } finally {
       setUploading(false);

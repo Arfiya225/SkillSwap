@@ -130,7 +130,7 @@ Generate at least 4 weeks of structured roadmap details matching the target leve
       success: true,
       studyPlan: {
         ...planData,
-        generatedAt: new Date().toISOString(), // Mock value for client convenience before snapshot reload
+        generatedAt: new Date().toISOString(),
       },
     });
   } catch (error: any) {

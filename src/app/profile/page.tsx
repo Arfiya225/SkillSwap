@@ -79,7 +79,7 @@ export default function ProfilePage() {
 
       await updateUserProfile(user.uid, updatedProfile);
       await refreshDbUser();
-      
+
       toast.success("Profile saved successfully!", { id: toastId });
     } catch (err: any) {
       console.error(err);
@@ -99,7 +99,7 @@ export default function ProfilePage() {
     <ProtectedRoute>
       <div className="min-h-screen bg-[#0F172A] flex flex-col">
         <Navbar />
-        
+
         <main className="flex-grow max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
           <PageHeader
             title="Profile Settings"
@@ -126,11 +126,10 @@ export default function ProfilePage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap md:w-full ${
-                      isSelected
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap md:w-full ${isSelected
                         ? "bg-violet-500/10 text-violet-300 border border-violet-500/20 shadow-[0_0_15px_-3px_rgba(157,124,252,0.15)]"
                         : "text-slate-400 hover:text-slate-200 border border-transparent"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
@@ -147,11 +146,10 @@ export default function ProfilePage() {
                     <h3 className="text-base font-bold text-slate-100 uppercase tracking-wide border-b border-slate-800 pb-2.5">
                       Personal Information
                     </h3>
-                    
+
                     <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-800">
                       <AvatarUploader
                         currentAvatar={avatar}
-                        name={name}
                         onUploadSuccess={(url) => setAvatar(url)}
                       />
                       <div className="text-center sm:text-left flex-grow">
@@ -265,7 +263,7 @@ export default function ProfilePage() {
                     <h3 className="text-base font-bold text-slate-100 uppercase tracking-wide border-b border-slate-800 pb-2.5">
                       Social Accounts
                     </h3>
-                    
+
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
                         GitHub Profile Link

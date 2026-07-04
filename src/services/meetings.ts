@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { Meeting } from "@/types/meeting";
-import { activeMeetingProvider } from "./meeting-provider";
+
 import { createNotification } from "./notifications";
 
 /**
@@ -53,19 +53,12 @@ export async function scheduleMeeting(
   hostId: string,
   participants: string[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  meetingLink: string
 ): Promise<string> {
   try {
     const meetingsRef = collection(db, "meetings");
     const newDoc = doc(meetingsRef);
-
-    const meetingLink = await activeMeetingProvider.createMeeting(
-      roomId,
-      title,
-      description,
-      startTime,
-      endTime
-    );
 
     const meetingData: Meeting = {
       id: newDoc.id,
@@ -117,17 +110,7 @@ export async function updateMeeting(
   try {
     const meetingRef = doc(db, "meetings", meetingId);
     
-    if (updates.startTime || updates.endTime) {
-      // Let provider update if it needs to
-      await activeMeetingProvider.updateMeeting(
-        roomId,
-        meetingId,
-        updates.title || "",
-        updates.description || "",
-        updates.startTime || "",
-        updates.endTime || ""
-      );
-    }
+    // Manual link meetings do not require provider sync
 
     await updateDoc(meetingRef, updates);
   } catch (error) {
@@ -143,7 +126,6 @@ export async function cancelMeeting(roomId: string, meetingId: string): Promise<
   try {
     const meetingRef = doc(db, "meetings", meetingId);
     await updateDoc(meetingRef, { status: "cancelled" });
-    await activeMeetingProvider.cancelMeeting(meetingId);
   } catch (error) {
     console.error("Error cancelling meeting:", error);
     throw error;

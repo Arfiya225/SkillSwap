@@ -5,6 +5,7 @@ import {
   query,
   orderBy,
   onSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { VerificationRequest } from "@/types/verification";
@@ -42,7 +43,7 @@ export async function approveVerification(requestId: string, userId: string, adm
   await updateDoc(docRef, {
     status: "Approved",
     adminNotes,
-    updatedAt: new Date().toISOString(), // Mock timestamp for simplicity here
+    updatedAt: serverTimestamp(),
   });
 
   const userRef = doc(db, "Users", userId);
@@ -64,7 +65,7 @@ export async function rejectVerification(requestId: string, userId: string, admi
   await updateDoc(docRef, {
     status: "Rejected",
     adminNotes,
-    updatedAt: new Date().toISOString(),
+    updatedAt: serverTimestamp(),
   });
 
   const userRef = doc(db, "Users", userId);

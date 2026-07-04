@@ -11,15 +11,16 @@ import {
   writeBatch,
   getDocs,
 } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { Notification, NotificationType } from "@/types/notification";
+import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
+import { app, db } from "@/firebase/config";
+import { AppNotification, NotificationType } from "@/types/notification";
 
 /**
  * Listens to active notifications for a specific user in real time.
  */
 export function subscribeToNotifications(
   userId: string,
-  onUpdate: (notifications: Notification[]) => void
+  onUpdate: (notifications: AppNotification[]) => void
 ) {
   const notificationsRef = collection(db, "notifications");
   const q = query(
@@ -31,9 +32,9 @@ export function subscribeToNotifications(
   return onSnapshot(
     q,
     (snapshot) => {
-      const list: Notification[] = [];
+      const list: AppNotification[] = [];
       snapshot.forEach((docSnap) => {
-        list.push(docSnap.data() as Notification);
+        list.push(docSnap.data() as AppNotification);
       });
       onUpdate(list);
     },
@@ -57,7 +58,7 @@ export async function createNotification(
     const notificationsRef = collection(db, "notifications");
     const newDoc = doc(notificationsRef);
 
-    const notificationData: Notification = {
+    const notificationData: AppNotification = {
       id: newDoc.id,
       userId,
       title: title.trim(),
@@ -117,5 +118,42 @@ export async function markAllAsRead(userId: string): Promise<void> {
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
     throw error;
+  }
+}
+
+/**
+ * Initializes FCM and requests browser push notification permissions.
+ */
+export async function requestNotificationPermission(userId: string): Promise<void> {
+  try {
+    const supported = await isSupported();
+    if (!supported) {
+      console.log("FCM is not supported in this browser.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      const messaging = getMessaging(app);
+      
+      // Use the VAPID key from environment variables
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY || "PLACEHOLDER_VAPID_KEY";
+      
+      const currentToken = await getToken(messaging, { vapidKey });
+      
+      if (currentToken) {
+        // Save token to user document
+        const userRef = doc(db, "Users", userId);
+        await updateDoc(userRef, { fcmToken: currentToken });
+        
+        // Listen to foreground messages
+        onMessage(messaging, (payload) => {
+          console.log("Foreground message received:", payload);
+          // In a real app, you might trigger a toast here if not using the Firestore listener
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error requesting FCM permission:", error);
   }
 }

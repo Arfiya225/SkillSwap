@@ -29,6 +29,7 @@ import { MeetingCard } from "@/components/ui/MeetingCard";
 import { MeetingScheduler } from "@/components/ui/MeetingScheduler";
 import { StudyPlanCard } from "@/components/ui/StudyPlanCard";
 import { SessionSummaryCard } from "@/components/ui/SessionSummaryCard";
+import { ChatPanel } from "@/components/ui/ChatPanel";
 
 // Collaboration Services
 import {
@@ -79,6 +80,7 @@ import {
   Video,
   Sparkles,
   Map,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -89,7 +91,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type RoomTab = "overview" | "notes" | "resources" | "tasks" | "progress" | "activity" | "meetings" | "study-plan" | "summaries";
+type RoomTab = "overview" | "chat" | "notes" | "resources" | "tasks" | "progress" | "activity" | "meetings" | "study-plan" | "summaries";
 
 export default function RoomPage({ params }: PageProps) {
   return (
@@ -532,6 +534,7 @@ function RoomWorkspace({ params }: PageProps) {
           <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             {([
               { id: "overview", label: "Overview", icon: BookOpen },
+              { id: "chat", label: "Chat", icon: MessageSquare },
               { id: "meetings", label: "Meetings", icon: Video },
               { id: "study-plan", label: "AI Study Path", icon: Map },
               { id: "summaries", label: "AI Summaries", icon: Sparkles },
@@ -654,6 +657,18 @@ function RoomWorkspace({ params }: PageProps) {
 
               </div>
             </div>
+          )}
+
+          {/* =================================================== */}
+          {/* 1.5 CHAT TAB */}
+          {/* =================================================== */}
+          {activeTab === "chat" && user && dbUser && (
+            <ChatPanel 
+              roomId={room.roomId}
+              currentUserId={user.uid}
+              currentUserName={dbUser.name}
+              otherParticipants={room.participants.filter(p => p !== user.uid)}
+            />
           )}
 
           {/* =================================================== */}
@@ -1043,17 +1058,15 @@ function RoomWorkspace({ params }: PageProps) {
           {/* =================================================== */}
           {/* 9. SUMMARIES TAB */}
           {/* =================================================== */}
-          {activeTab === "summaries" && (
+          {activeTab === "summaries" && roomId && (
             <div className="space-y-6">
               <SessionSummaryCard
+                roomId={roomId}
                 summaries={summaries}
                 onGenerate={async () => {
+                  setGeneratingSummary(true);
                   try {
-                    setGeneratingSummary(true);
                     await generateSessionSummary(roomId!);
-                  } catch (err: any) {
-                    console.error(err);
-                    toast.error(err.message || "Failed to generate session summary.");
                   } finally {
                     setGeneratingSummary(false);
                   }
@@ -1071,7 +1084,7 @@ function RoomWorkspace({ params }: PageProps) {
           <MeetingScheduler
             roomParticipants={room.participants}
             participantProfiles={room.participantProfiles || {}}
-            onSchedule={async (title, description, startISO, endISO) => {
+            onSchedule={async (title, description, startISO, endISO, meetingLink) => {
                await scheduleMeeting(
                  roomId!,
                  title,
@@ -1079,7 +1092,8 @@ function RoomWorkspace({ params }: PageProps) {
                  user?.uid || "",
                  room.participants,
                  startISO,
-                 endISO
+                 endISO,
+                 meetingLink
                );
             }}
             onClose={() => setIsMeetingSchedulerOpen(false)}

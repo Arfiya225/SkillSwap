@@ -6,9 +6,10 @@ export type NotificationType =
   | "study_plan_generated"
   | "verification_submitted"
   | "verification_approved"
-  | "verification_rejected";
+  | "verification_rejected"
+  | "chat_message";
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   userId: string;
   title: string;

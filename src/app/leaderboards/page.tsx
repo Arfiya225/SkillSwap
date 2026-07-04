@@ -2,22 +2,32 @@
 import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { LeaderboardCard } from "@/components/ui/LeaderboardCard";
-import { getTopUsersByReputation } from "@/services/leaderboard";
+import { 
+  getTopUsersByReputation, 
+  getTopTeachers, 
+  getMostActiveLearners 
+} from "@/services/leaderboard";
 import { LeaderboardEntry } from "@/types/admin";
-import { Loader2, Award, TrendingUp, Users } from "lucide-react";
+import { Loader2, Award, TrendingUp, Users, BookOpen } from "lucide-react";
 
 export default function LeaderboardsPage() {
   const [loading, setLoading] = useState(true);
-  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
-  const [filter, setFilter] = useState("All Time");
+  const [topReputation, setTopReputation] = useState<LeaderboardEntry[]>([]);
+  const [topTeachers, setTopTeachers] = useState<LeaderboardEntry[]>([]);
+  const [topLearners, setTopLearners] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        // Mock filter behavior for MVP by shuffling/slicing or just reloading
-        const data = await getTopUsersByReputation(20);
-        setLeaders(data);
+        const [repData, teacherData, learnerData] = await Promise.all([
+          getTopUsersByReputation(10),
+          getTopTeachers(10),
+          getMostActiveLearners(10)
+        ]);
+        setTopReputation(repData);
+        setTopTeachers(teacherData);
+        setTopLearners(learnerData);
       } catch (e) {
         console.error(e);
       } finally {
@@ -25,12 +35,12 @@ export default function LeaderboardsPage() {
       }
     }
     load();
-  }, [filter]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <Navbar />
-      <main className="flex-grow pt-24 pb-12 px-4 max-w-5xl mx-auto w-full">
+      <main className="flex-grow pt-24 pb-12 px-4 max-w-7xl mx-auto w-full">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center p-3 bg-amber-500/10 rounded-full mb-4">
             <Award className="w-8 h-8 text-amber-500" />
@@ -41,24 +51,8 @@ export default function LeaderboardsPage() {
           </p>
         </div>
 
-        <div className="flex justify-center mb-8">
-          <div className="bg-slate-900/50 backdrop-blur-md p-1 rounded-lg border border-slate-700/50 inline-flex">
-            {["Weekly", "Monthly", "All Time"].map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filter === f ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Top Teachers Column */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-8">
+          {/* Top Reputation Column */}
           <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-6">
             <div className="flex items-center space-x-3 mb-6">
               <TrendingUp className="w-5 h-5 text-emerald-400" />
@@ -67,10 +61,32 @@ export default function LeaderboardsPage() {
             
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>
+            ) : topReputation.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">No data available yet</div>
             ) : (
               <div className="space-y-2">
-                {leaders.slice(0, 10).map((l, i) => (
-                  <LeaderboardCard key={l.userId + i} entry={l} />
+                {topReputation.map((l) => (
+                  <LeaderboardCard key={`rep-${l.userId}`} entry={l} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Top Teachers Column */}
+          <div className="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <BookOpen className="w-5 h-5 text-amber-400" />
+              <h2 className="text-xl font-bold text-white">Top Teachers</h2>
+            </div>
+            
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>
+            ) : topTeachers.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">No data available yet</div>
+            ) : (
+              <div className="space-y-2">
+                {topTeachers.map((l) => (
+                  <LeaderboardCard key={`teach-${l.userId}`} entry={l} />
                 ))}
               </div>
             )}
@@ -85,10 +101,12 @@ export default function LeaderboardsPage() {
             
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>
+            ) : topLearners.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">No data available yet</div>
             ) : (
               <div className="space-y-2">
-                {leaders.slice().reverse().slice(0, 10).map((l, i) => (
-                  <LeaderboardCard key={l.userId + "rev" + i} entry={{ ...l, rank: i + 1, score: l.score * 10 }} />
+                {topLearners.map((l) => (
+                  <LeaderboardCard key={`learn-${l.userId}`} entry={l} />
                 ))}
               </div>
             )}

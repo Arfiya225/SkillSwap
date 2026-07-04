@@ -149,7 +149,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
       {/* Action Button */}
       {meeting.status === "scheduled" ? (
         <a
-          href={meeting.meetingLink.includes("skillswap.local") ? `/rooms/${meeting.roomId}` : meeting.meetingLink}
+          href={meeting.meetingLink}
           target="_blank"
           rel="noopener noreferrer"
           className="block w-full mt-2"

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Notification } from "@/types/notification";
+import { AppNotification } from "@/types/notification";
 import {
   Inbox,
   CheckCircle,
@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 
 interface NotificationItemProps {
-  notification: Notification;
+  notification: AppNotification;
   onRead: (id: string) => Promise<void>;
   onClose?: () => void;
 }

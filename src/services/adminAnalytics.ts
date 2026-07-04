@@ -4,6 +4,10 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
+  collection,
+  query,
+  orderBy,
+  getDocs
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { AdminAnalytics } from "@/types/admin";
@@ -51,4 +55,44 @@ export async function incrementAdminMetric(
       updatedAt: serverTimestamp(),
     });
   }
+}
+
+export async function getAdminChartData(): Promise<{date: string, users: number}[]> {
+  const chartData: {date: string, users: number}[] = [];
+  const now = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    chartData.push({
+      date: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      users: 0,
+    });
+  }
+
+  try {
+    const usersRef = collection(db, "Users");
+    const q = query(usersRef, orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.createdAt) {
+        const createdAt = typeof data.createdAt === 'string' 
+          ? new Date(data.createdAt) 
+          : data.createdAt.toDate();
+        const diffTime = now.getTime() - createdAt.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        const index = 6 - diffDays;
+        if (index >= 0 && index <= 6) {
+          chartData[index].users += 1;
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching admin chart data", error);
+  }
+
+  return chartData;
 }

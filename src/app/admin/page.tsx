@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { AdminStatCard } from "@/components/ui/AdminStatCard";
 import { AdminAnalyticsChart } from "@/components/ui/AdminAnalyticsChart";
 import { PlatformHealthWidget } from "@/components/ui/PlatformHealthWidget";
-import { getGlobalAdminAnalytics } from "@/services/adminAnalytics";
+import { getGlobalAdminAnalytics, getAdminChartData } from "@/services/adminAnalytics";
 import { AdminAnalytics } from "@/types/admin";
 import { Loader2, Users, Activity, Target, MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -12,11 +12,16 @@ import Link from "next/link";
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [chartData, setChartData] = useState<{date: string, users: number}[]>([]);
 
   useEffect(() => {
     async function load() {
-      const data = await getGlobalAdminAnalytics();
+      const [data, cData] = await Promise.all([
+        getGlobalAdminAnalytics(),
+        getAdminChartData()
+      ]);
       setAnalytics(data);
+      setChartData(cData);
       setLoading(false);
     }
     load();
@@ -32,16 +37,6 @@ export default function AdminDashboardPage() {
       </div>
     );
   }
-
-  // Mock chart data for MVP growth view
-  const mockChartData = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return {
-      date: d.toLocaleDateString(undefined, { weekday: 'short' }),
-      users: (analytics?.totalUsers || 100) - (6 - i) * 5 + Math.floor(Math.random() * 10),
-    };
-  });
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -96,7 +91,7 @@ export default function AdminDashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <AdminAnalyticsChart data={mockChartData} />
+            <AdminAnalyticsChart data={chartData} />
           </div>
           <div className="bg-slate-900/50 backdrop-blur-md border border-slate-700/50 rounded-xl p-5">
             <h3 className="text-white font-medium mb-4">Quick Actions</h3>

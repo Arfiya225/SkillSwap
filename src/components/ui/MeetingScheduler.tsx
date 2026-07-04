@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 interface MeetingSchedulerProps {
   roomParticipants: string[];
   participantProfiles: Record<string, { name: string; avatar: string; email: string }>;
-  onSchedule: (title: string, description: string, startTime: string, endTime: string) => Promise<void>;
+  onSchedule: (title: string, description: string, startTime: string, endTime: string, meetingLink: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -21,6 +21,7 @@ export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [meetingLink, setMeetingLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,9 +52,20 @@ export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
       return;
     }
 
+    if (!meetingLink.trim()) {
+      toast.error("Meeting link is required.");
+      return;
+    }
+
+    const urlRegex = /^https?:\/\/(meet\.google\.com|zoom\.us|teams\.microsoft\.com)\//i;
+    if (!urlRegex.test(meetingLink.trim())) {
+      toast.error("Please enter a valid Google Meet, Zoom, or Microsoft Teams link.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await onSchedule(title, description, startISO, endISO);
+      await onSchedule(title, description, startISO, endISO, meetingLink.trim());
       toast.success("Meeting scheduled successfully!");
       onClose();
     } catch (err: any) {
@@ -65,29 +77,36 @@ export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scheduler-title"
+    >
       <GlassCard className="border border-white/10 bg-slate-950/90 max-w-lg w-full p-6 animate-in zoom-in-95 duration-200 shadow-2xl">
         {/* Header */}
         <div className="flex justify-between items-center border-b border-slate-900 pb-3.5 mb-4">
-          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <Video className="w-5 h-5 text-violet-400" />
+          <h3 id="scheduler-title" className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <Video className="w-5 h-5 text-violet-400" aria-hidden="true" />
             <span>Schedule Workspace Meeting</span>
           </h3>
           <button
             onClick={onClose}
+            aria-label="Close scheduler"
             className="p-1 hover:bg-slate-900 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer"
           >
-            <X className="w-4.5 h-4.5" />
+            <X className="w-4.5 h-4.5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            <label htmlFor="meeting-title" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Meeting Title *
             </label>
             <input
+              id="meeting-title"
               type="text"
               placeholder="e.g. Code Review & Troubleshooting"
               value={title}
@@ -107,6 +126,20 @@ export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3.5 py-2.5 text-xs rounded-xl glass-input font-medium text-slate-200 resize-none"
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Meeting Link (Required)
+            </label>
+            <input
+              type="url"
+              placeholder="e.g. https://meet.google.com/abc-defg-hij"
+              value={meetingLink}
+              onChange={(e) => setMeetingLink(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl glass-input font-medium text-slate-200"
+              required
             />
           </div>
 
@@ -164,7 +197,7 @@ export const MeetingScheduler: React.FC<MeetingSchedulerProps> = ({
 
           {/* Alert Info */}
           <div className="bg-slate-900/40 border border-white/5 rounded-xl p-3.5 text-[11px] text-slate-400 leading-normal">
-            💡 This will schedule a local session. Other workspace partners will receive immediate real-time notifications with redirect links.
+            💡 This will schedule a workspace session using the provided meeting link. Other workspace partners will receive immediate real-time notifications.
           </div>
 
           {/* Footer Actions */}

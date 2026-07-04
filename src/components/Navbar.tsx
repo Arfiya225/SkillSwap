@@ -8,15 +8,15 @@ import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 import { NotificationCenter } from "./ui/NotificationCenter";
-import { subscribeToNotifications } from "@/services/notifications";
-import { Notification } from "@/types/notification";
+import { subscribeToNotifications, requestNotificationPermission } from "@/services/notifications";
+import { AppNotification } from "@/types/notification";
 
 export const Navbar: React.FC = () => {
   const { user, dbUser, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
@@ -27,6 +27,12 @@ export const Navbar: React.FC = () => {
     const unsubscribe = subscribeToNotifications(user.uid, (data) => {
       setNotifications(data);
     });
+
+    // Request browser push permission if supported
+    if ("Notification" in window && Notification.permission !== "denied") {
+      requestNotificationPermission(user.uid).catch(console.error);
+    }
+
     return () => unsubscribe();
   }, [user]);
 
@@ -53,9 +59,9 @@ export const Navbar: React.FC = () => {
     <nav className="sticky top-0 z-40 w-full bg-slate-950/65 backdrop-blur-md border-b border-white/5 px-4 sm:px-6 lg:px-8 py-3.5 shadow-lg">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/matches" className="flex items-center gap-2 cursor-pointer group">
+        <Link href="/matches" className="flex items-center gap-2 cursor-pointer group" aria-label="Go to Matches">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 via-violet-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-violet-500/20 group-hover:scale-105 transition-transform duration-200">
-            <HeartHandshake className="w-5 h-5" />
+            <HeartHandshake className="w-5 h-5" aria-hidden="true" />
           </div>
           <span className="font-extrabold text-lg bg-gradient-to-r from-blue-400 via-violet-400 to-pink-400 bg-clip-text text-transparent tracking-tight">
             SkillSwap AI
@@ -85,9 +91,11 @@ export const Navbar: React.FC = () => {
             <>
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
+                aria-label="Toggle notifications"
+                aria-expanded={showNotifications}
                 className="relative p-2 text-slate-400 hover:text-violet-400 rounded-xl hover:bg-slate-900/50 border border-transparent hover:border-white/5 transition-all duration-200 cursor-pointer"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5" aria-hidden="true" />
                 {notifications.filter((n) => !n.read).length > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.8)] animate-pulse" />
                 )}
@@ -110,17 +118,18 @@ export const Navbar: React.FC = () => {
                 </span>
                 <Link
                   href="/profile"
+                  aria-label="Go to My Profile"
                   className="w-8 h-8 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center cursor-pointer shrink-0"
                 >
                   {dbUser?.avatar || user.photoURL ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={dbUser?.avatar || user.photoURL || ""}
-                      alt="Avatar"
+                      alt={`${dbUser?.name || user.displayName || "User"}'s Avatar`}
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-4 h-4 text-slate-500" />
+                    <User className="w-4 h-4 text-slate-500" aria-hidden="true" />
                   )}
                 </Link>
               </div>
@@ -139,9 +148,11 @@ export const Navbar: React.FC = () => {
         {/* Mobile Menu Toggle */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
+          aria-expanded={mobileMenuOpen}
           className="md:hidden p-2 rounded-xl border border-white/5 bg-slate-900/60 text-slate-400 hover:text-slate-200 transition-colors"
         >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {mobileMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
         </button>
       </div>
 

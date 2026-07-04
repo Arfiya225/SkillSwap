@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { Notification } from "@/types/notification";
+import { AppNotification } from "@/types/notification";
 import { NotificationItem } from "./NotificationItem";
 import { Bell, CheckCheck } from "lucide-react";
 import { markAllAsRead, markAsRead } from "@/services/notifications";
@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 
 interface NotificationCenterProps {
   userId: string;
-  notifications: Notification[];
+  notifications: AppNotification[];
   onClose: () => void;
 }
 

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { SessionSummary } from "@/types/sessionSummary";
 import { GlassCard } from "./GlassCard";
+import { RecordingUploader } from "./RecordingUploader";
 import {
   Sparkles,
   Award,
@@ -22,6 +23,7 @@ interface SessionSummaryCardProps {
   onGenerate: () => Promise<void>;
   loading: boolean;
   apiKeyMissing: boolean;
+  roomId: string;
 }
 
 export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
@@ -29,6 +31,7 @@ export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
   onGenerate,
   loading,
   apiKeyMissing,
+  roomId,
 }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
@@ -98,10 +101,13 @@ export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
           ) : (
             <>
               <Sparkles className="w-4.5 h-4.5" />
-              <span>Summarize Workspace Activity</span>
+              <span>Summarize Notes (Text)</span>
             </>
           )}
         </button>
+        <div className="pt-6">
+          <RecordingUploader roomId={roomId} onUploadComplete={handleGenerateClick} />
+        </div>
       </GlassCard>
     );
   }
@@ -160,7 +166,7 @@ export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
           ) : (
             <Sparkles className="w-3.5 h-3.5" />
           )}
-          <span>Summarize Activity</span>
+          <span>Summarize Notes (Text)</span>
         </button>
       </div>
 
@@ -249,6 +255,34 @@ export const SessionSummaryCard: React.FC<SessionSummaryCardProps> = ({
                 ))}
               </ul>
             </div>
+            {/* MCQ Quiz */}
+            {activeSummary.mcqQuiz && activeSummary.mcqQuiz.length > 0 && (
+              <div className="space-y-2 bg-slate-900/35 border border-white/5 p-4 rounded-2xl sm:col-span-2">
+                <h5 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-900 pb-1.5">
+                  <BookOpen className="w-4 h-4 text-orange-400 shrink-0" />
+                  <span>Knowledge Check (MCQ)</span>
+                </h5>
+                <div className="space-y-4">
+                  {activeSummary.mcqQuiz.map((q, idx) => (
+                    <div key={idx} className="text-xs text-slate-300 font-medium">
+                      <p className="mb-2 font-bold text-slate-100">Q: {q.question}</p>
+                      <ul className="space-y-1 pl-2">
+                        {q.options.map((opt, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                            <span className={opt === q.answer ? "text-emerald-400 font-bold" : ""}>{opt}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="pt-6 border-t border-slate-900 relative z-10">
+             <RecordingUploader roomId={roomId} onUploadComplete={handleGenerateClick} />
           </div>
         </GlassCard>
       </div>

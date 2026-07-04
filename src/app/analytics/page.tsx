@@ -13,7 +13,7 @@ import { auth } from "@/firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
 import { Loader2, Activity, Clock, Target, Users } from "lucide-react";
 
-import { getUserAnalytics } from "@/services/analytics";
+import { getUserAnalytics, getChartData } from "@/services/analytics";
 import { getUserAttendanceHistory } from "@/services/attendance";
 import { subscribeToUserReviews } from "@/services/ratings";
 import { getUserReputation } from "@/services/reputation";
@@ -48,27 +48,16 @@ export default function AnalyticsDashboard() {
 
     const loadData = async () => {
       try {
-        const [aData, attData, repData] = await Promise.all([
+        const [aData, attData, repData, cData] = await Promise.all([
           getUserAnalytics(userId),
           getUserAttendanceHistory(userId),
-          getUserReputation(userId)
+          getUserReputation(userId),
+          getChartData(userId, 7)
         ]);
         
         setAnalytics(aData);
         setAttendance(attData);
         setReputation(repData);
-
-        // Generate mock trailing 7 days for the chart
-        const cData: ActivitySummary[] = [];
-        for(let i=6; i>=0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          cData.push({
-            date: d.toLocaleDateString(undefined, { weekday: 'short' }),
-            hours: Math.floor(Math.random() * 3), // mock data
-            sessions: Math.floor(Math.random() * 2), // mock data
-          });
-        }
         setChartData(cData);
 
       } catch (err) {
