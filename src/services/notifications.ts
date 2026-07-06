@@ -14,6 +14,7 @@ import {
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 import { app, db } from "@/firebase/config";
 import { AppNotification, NotificationType } from "@/types/notification";
+import { sendEmailToUser } from "./emailNotifications";
 
 /**
  * Listens to active notifications for a specific user in real time.
@@ -73,6 +74,30 @@ export async function createNotification(
       ...notificationData,
       createdAt: serverTimestamp(),
     });
+
+    const emailEvents = [
+      "swap_request",
+      "request_accepted",
+      "meeting_scheduled",
+      "chat_message",
+      "verification_approved",
+      "verification_rejected"
+    ];
+
+    if (emailEvents.includes(type)) {
+      let eventName: string = type;
+      switch(type) {
+        case "swap_request": eventName = "Swap Request Sent"; break;
+        case "request_accepted": eventName = "Swap Request Accepted"; break;
+        case "meeting_scheduled": eventName = "Meeting Scheduled"; break;
+        case "chat_message": eventName = "Chat Message Received"; break;
+        case "verification_approved": eventName = "Verification Approved"; break;
+        case "verification_rejected": eventName = "Verification Rejected"; break;
+      }
+      
+      // Non-blocking call
+      sendEmailToUser(userId, eventName, message).catch(console.error);
+    }
 
     return newDoc.id;
   } catch (error) {

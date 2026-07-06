@@ -1,9 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { supabase } from "@/lib/supabase";
 import { PlatformHealthWidget } from "@/components/ui/PlatformHealthWidget";
 import { ShieldCheck, Database, Cloud, Zap, Server, Loader2, CheckCircle, XCircle } from "lucide-react";
-import { db, auth, storage } from "@/firebase/config";
+import { db, auth } from "@/firebase/config";
 import Link from "next/link";
 
 export default function SystemHealthPage() {
@@ -22,7 +23,7 @@ export default function SystemHealthPage() {
         // Simple sanity checks
         const firestoreStatus = !!db;
         const authStatus = !!auth;
-        const storageStatus = !!storage;
+        const storageStatus = !!supabase;
         
         // Check ENV vars
         const envStatus = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;

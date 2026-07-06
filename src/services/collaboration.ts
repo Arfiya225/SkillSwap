@@ -9,8 +9,8 @@ import {
   orderBy,
   onSnapshot,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/firebase/config";
+import { db } from "@/firebase/config";
+import { uploadResource } from "./storage";
 import { Note } from "@/types/note";
 import { Resource, ResourceType } from "@/types/resource";
 import { Task } from "@/types/task";
@@ -162,11 +162,7 @@ export async function uploadResourceFile(
   file: File
 ): Promise<string> {
   try {
-    const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-    const fileRef = ref(storage, `learningRooms/${roomId}/resources/${uniqueName}`);
-    
-    const snapshot = await uploadBytes(fileRef, file);
-    return await getDownloadURL(snapshot.ref);
+    return await uploadResource(roomId, file);
   } catch (error) {
     console.error("Error uploading resource file:", error);
     throw error;

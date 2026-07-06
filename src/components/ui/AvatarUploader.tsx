@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
+import { uploadAvatar } from "@/services/storage";
 import { Camera, User, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -44,12 +43,8 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
     const toastId = toast.loading("Uploading image...");
 
     try {
-      // Create storage ref: avatars/{uid}/{timestamp}_{filename}
-      const fileRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${file.name}`);
-      
-      // Upload
-      const snapshot = await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      // Upload via Supabase storage
+      const downloadURL = await uploadAvatar(user.uid, file);
 
       // Callback
       onUploadSuccess(downloadURL);

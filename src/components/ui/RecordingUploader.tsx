@@ -1,8 +1,7 @@
 "use client";
 import React, { useState, useRef } from "react";
 import { UploadCloud, Loader2, Play } from "lucide-react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/firebase/config";
+import { uploadRecording } from "@/services/storage";
 import toast from "react-hot-toast";
 
 export function RecordingUploader({ roomId, onUploadComplete }: { roomId: string; onUploadComplete: () => void }) {
@@ -22,9 +21,7 @@ export function RecordingUploader({ roomId, onUploadComplete }: { roomId: string
     const toastId = toast.loading("Uploading media file...");
 
     try {
-      const fileRef = ref(storage, `recordings/${roomId}/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const downloadURL = await uploadRecording(roomId, file);
 
       toast.loading("Analyzing recording with Gemini AI... This may take a moment.", { id: toastId });
 
