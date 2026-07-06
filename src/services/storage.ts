@@ -1,64 +1,99 @@
-import { supabase } from "@/lib/supabase";
+import { auth } from "@/firebase/config";
 
 /**
- * Helper to upload a file to a specific Supabase Storage bucket and return the public URL.
- */
-async function uploadToSupabase(bucket: string, path: string, file: File): Promise<string> {
-  const { error } = await supabase.storage.from(bucket).upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  // Get the public URL
-  const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(path);
-  return publicUrlData.publicUrl;
-}
-
-/**
- * Upload an avatar to Supabase and return its public URL.
+ * Upload an avatar to the Next.js API proxy and return its public URL.
  */
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-  const path = `${userId}/${uniqueName}`;
-  return uploadToSupabase("avatars", path, file);
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("User not authenticated");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/upload/avatar", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Upload failed");
+  }
+
+  return data.url;
 }
 
 /**
- * Upload a resource to Supabase and return its public URL.
+ * Upload a resource to the Next.js API proxy and return its public URL.
  */
 export async function uploadResource(roomId: string, file: File): Promise<string> {
-  const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-  const path = `${roomId}/${uniqueName}`;
-  return uploadToSupabase("resources", path, file);
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("User not authenticated");
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("roomId", roomId);
+
+  const response = await fetch("/api/upload/resource", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Upload failed");
+  }
+
+  return data.url;
 }
 
 /**
- * Upload a recording to Supabase and return its public URL.
+ * Upload a recording to the Next.js API proxy and return its public URL.
  */
 export async function uploadRecording(roomId: string, file: File): Promise<string> {
-  const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-  const path = `${roomId}/${uniqueName}`;
-  return uploadToSupabase("recordings", path, file);
-}
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("User not authenticated");
 
-/**
- * Delete a file from a specific Supabase bucket.
- */
-export async function deleteFile(bucket: string, path: string): Promise<void> {
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  if (error) {
-    throw error;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("roomId", roomId);
+
+  const response = await fetch("/api/upload/recording", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Upload failed");
   }
+
+  return data.url;
 }
 
 /**
- * Get the public URL of a file.
+ * Delete a file from a specific Supabase bucket (Placeholder for future API implementation).
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function deleteFile(_bucket: string, _path: string): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("User not authenticated");
+  console.warn("Delete file not fully implemented on backend proxy yet. Requires DELETE API route.");
+}
+
+/**
+ * Get the public URL of a file. (Read is still public on bucket)
  */
 export function getPublicUrl(bucket: string, path: string): string {
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ynrjvwazanmsuzutnryd.supabase.co";
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }
