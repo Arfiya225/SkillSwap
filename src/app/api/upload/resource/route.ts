@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
 import { uploadFileAdmin } from "@/services/serverStorage";
 
 export async function POST(req: Request) {
@@ -11,6 +11,7 @@ export async function POST(req: Request) {
 
     const token = authHeader.split("Bearer ")[1];
     try {
+      const adminAuth = await getFirebaseAdminAuth();
       await adminAuth.verifyIdToken(token);
     } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
 import { uploadFileAdmin } from "@/services/serverStorage";
 
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[Avatar Upload Error] Missing authorization header");
       return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 });
     }
 
     const token = authHeader.split("Bearer ")[1];
     let decodedToken;
     try {
+      const adminAuth = await getFirebaseAdminAuth();
       decodedToken = await adminAuth.verifyIdToken(token);
-    } catch {
+    } catch (err) {
+      console.error("[Avatar Upload Error] Firebase token verification failure", err);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[Avatar Upload Error] Missing SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const userId = decodedToken.uid;
@@ -42,7 +50,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: publicUrl });
   } catch (error: any) {
-    console.error("Avatar upload error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("[Avatar Upload Error] Supabase upload error:", error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 }

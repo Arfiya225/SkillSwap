@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase admin client (server-side only)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ynrjvwazanmsuzutnryd.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "missing-service-key";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
