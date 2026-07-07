@@ -1,10 +1,9 @@
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-
 let firebaseAdminApp: any = null;
 
 export async function getFirebaseAdminApp() {
   if (!firebaseAdminApp) {
+    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+
     if (getApps().length === 0) {
       if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
         console.warn("[Firebase Admin] NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing");
@@ -16,10 +15,12 @@ export async function getFirebaseAdminApp() {
         console.warn("[Firebase Admin] FIREBASE_PRIVATE_KEY is missing");
       }
 
-      // Handle Vercel env variable newlines in private key
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY
-        ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
-        : undefined;
+      // Handle Vercel env variable newlines and quotes in private key
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+      if (privateKey) {
+        privateKey = privateKey.replace(/^"|"$/g, ''); // Remove wrapping quotes
+        privateKey = privateKey.replace(/\\n/g, '\n'); // Replace literal \n
+      }
 
       try {
         firebaseAdminApp = initializeApp({
@@ -35,7 +36,7 @@ export async function getFirebaseAdminApp() {
           throw new Error("Firebase project ID mismatch");
         }
         if (err.message.includes('service account') || err.message.includes('private key') || err.message.includes('credential')) {
-          throw new Error("Firebase service account invalid");
+          throw new Error(`Firebase service account invalid: ${err.message}`);
         }
         throw new Error("Firebase Admin initialization failed: " + err.message);
       }
@@ -48,5 +49,6 @@ export async function getFirebaseAdminApp() {
 
 export async function getFirebaseAdminAuth() {
   await getFirebaseAdminApp();
+  const { getAuth } = await import("firebase-admin/auth");
   return getAuth();
 }
