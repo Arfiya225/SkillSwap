@@ -2,9 +2,9 @@ let firebaseAdminApp: any = null;
 
 export async function getFirebaseAdminApp() {
   if (!firebaseAdminApp) {
-    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+    const admin = await import("firebase-admin");
 
-    if (getApps().length === 0) {
+    if (admin.getApps().length === 0) {
       if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
         console.warn("[Firebase Admin] NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing");
       }
@@ -23,8 +23,8 @@ export async function getFirebaseAdminApp() {
       }
 
       try {
-        firebaseAdminApp = initializeApp({
-          credential: cert({
+        firebaseAdminApp = admin.initializeApp({
+          credential: admin.cert({
             projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey,
@@ -41,7 +41,7 @@ export async function getFirebaseAdminApp() {
         throw new Error("Firebase Admin initialization failed: " + err.message);
       }
     } else {
-      firebaseAdminApp = getApps()[0];
+      firebaseAdminApp = admin.getApps()[0];
     }
   }
   return firebaseAdminApp;
@@ -49,6 +49,8 @@ export async function getFirebaseAdminApp() {
 
 export async function getFirebaseAdminAuth() {
   await getFirebaseAdminApp();
-  const { getAuth } = await import("firebase-admin/auth");
-  return getAuth();
+  const admin = await import("firebase-admin");
+  // @ts-expect-error: Vercel serverless workaround
+  const auth = admin.auth();
+  return auth;
 }
