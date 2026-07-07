@@ -5,16 +5,51 @@ import { uploadFileAdmin } from "@/services/serverStorage";
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 });
+    if (!authHeader) {
+      console.error("[Resource Upload Error] Missing Authorization header");
+      return NextResponse.json({ error: "Unauthorized", reason: "Missing Authorization header" }, { status: 401 });
+    }
+    
+    if (!authHeader.startsWith("Bearer ")) {
+      console.error("[Resource Upload Error] Authorization header missing Bearer prefix");
+      return NextResponse.json({ error: "Unauthorized", reason: "Missing Bearer token" }, { status: 401 });
     }
 
-    const token = authHeader.split("Bearer ")[1];
+    const token = authHeader.split("Bearer ")[1]?.trim();
+    if (!token) {
+      console.error("[Resource Upload Error] Empty Firebase token provided");
+      return NextResponse.json({ error: "Unauthorized", reason: "getIdToken() returned empty" }, { status: 401 });
+    }
+
     try {
       const adminAuth = await getFirebaseAdminAuth();
-      await adminAuth.verifyIdToken(token);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      
+      if (!decodedToken.uid) {
+        console.error("[Resource Upload Error] decoded uid missing");
+        return NextResponse.json({ error: "Unauthorized", reason: "decoded uid missing" }, { status: 401 });
+      }
+    } catch (err: any) {
+      console.error("[Resource Upload Error] Auth failure:", err.message);
+      
+      let reason = "verifyIdToken() failed";
+      if (err.message === "Firebase project ID mismatch") reason = err.message;
+      else if (err.message === "Firebase service account invalid") reason = err.message;
+      else if (err.message.startsWith("Firebase Admin initialization failed")) reason = "Firebase Admin initialization failed";
+
+      return NextResponse.json(
+        { 
+          error: "Unauthorized",
+          reason: reason,
+          details: err.message
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[Resource Upload Error] Missing SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const formData = await req.formData();
@@ -52,7 +87,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: publicUrl });
   } catch (error: any) {
-    console.error("Resource upload error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("[Resource Upload Error] Supabase upload error:", error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 }

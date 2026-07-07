@@ -4,8 +4,9 @@ import { auth } from "@/firebase/config";
  * Upload an avatar to the Next.js API proxy and return its public URL.
  */
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error("User not authenticated");
+  if (!auth.currentUser) throw new Error("auth.currentUser is null");
+  const token = await auth.currentUser.getIdToken();
+  if (!token) throw new Error("getIdToken() returned empty");
 
   const formData = new FormData();
   formData.append("file", file);
@@ -30,8 +31,9 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
  * Upload a resource to the Next.js API proxy and return its public URL.
  */
 export async function uploadResource(roomId: string, file: File): Promise<string> {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error("User not authenticated");
+  if (!auth.currentUser) throw new Error("auth.currentUser is null");
+  const token = await auth.currentUser.getIdToken();
+  if (!token) throw new Error("getIdToken() returned empty");
 
   const formData = new FormData();
   formData.append("file", file);
@@ -57,8 +59,9 @@ export async function uploadResource(roomId: string, file: File): Promise<string
  * Upload a recording to the Next.js API proxy and return its public URL.
  */
 export async function uploadRecording(roomId: string, file: File): Promise<string> {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error("User not authenticated");
+  if (!auth.currentUser) throw new Error("auth.currentUser is null");
+  const token = await auth.currentUser.getIdToken();
+  if (!token) throw new Error("getIdToken() returned empty");
 
   const formData = new FormData();
   formData.append("file", file);

@@ -5,16 +5,39 @@ import { uploadFileAdmin } from "@/services/serverStorage";
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 });
+    if (!authHeader) {
+      console.error("[Recording Upload Error] Missing Authorization header");
+      return NextResponse.json({ error: "Missing Authorization header" }, { status: 401 });
+    }
+    
+    if (!authHeader.startsWith("Bearer ")) {
+      console.error("[Recording Upload Error] Authorization header missing Bearer prefix");
+      return NextResponse.json({ error: "Authorization header missing Bearer prefix" }, { status: 401 });
     }
 
-    const token = authHeader.split("Bearer ")[1];
+    const token = authHeader.split("Bearer ")[1]?.trim();
+    if (!token) {
+      console.error("[Recording Upload Error] Empty Firebase token provided");
+      return NextResponse.json({ error: "Empty Firebase token provided" }, { status: 401 });
+    }
+
     try {
       const adminAuth = await getFirebaseAdminAuth();
       await adminAuth.verifyIdToken(token);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    } catch (err: any) {
+      console.error("[Recording Upload Error] Firebase token verification failure:", err.message);
+      return NextResponse.json(
+        { 
+          error: "Firebase token verification failed",
+          details: err.message
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[Recording Upload Error] Missing SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const formData = await req.formData();
@@ -45,7 +68,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: publicUrl });
   } catch (error: any) {
-    console.error("Recording upload error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("[Recording Upload Error] Supabase upload error:", error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 }
