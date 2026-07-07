@@ -21,7 +21,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Upload failed");
+    throw new Error(data.reason || data.error || "Upload failed");
   }
 
   return data.url;
@@ -49,7 +49,7 @@ export async function uploadResource(roomId: string, file: File): Promise<string
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Upload failed");
+    throw new Error(data.reason || data.error || "Upload failed");
   }
 
   return data.url;
@@ -77,7 +77,7 @@ export async function uploadRecording(roomId: string, file: File): Promise<strin
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Upload failed");
+    throw new Error(data.reason || data.error || "Upload failed");
   }
 
   return data.url;
