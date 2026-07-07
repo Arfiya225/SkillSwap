@@ -49,8 +49,7 @@ export async function getFirebaseAdminApp() {
 
 export async function getFirebaseAdminAuth() {
   await getFirebaseAdminApp();
-  const admin = await import("firebase-admin");
-  // @ts-expect-error: Vercel serverless workaround
-  const auth = admin.auth();
-  return auth;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getAuth } = require("firebase-admin/auth");
+  return getAuth();
 }
