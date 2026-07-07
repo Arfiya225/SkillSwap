@@ -1,13 +1,10 @@
-/**
- * Lazy load firebase-admin to prevent Vercel Serverless Function ERR_REQUIRE_ESM crashes.
- * Top-level imports of firebase-admin are intentionally omitted.
- */
+import { getApps, initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+
 let firebaseAdminApp: any = null;
 
 export async function getFirebaseAdminApp() {
   if (!firebaseAdminApp) {
-    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
-
     if (getApps().length === 0) {
       if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
         console.warn("[Firebase Admin] NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing");
@@ -51,6 +48,5 @@ export async function getFirebaseAdminApp() {
 
 export async function getFirebaseAdminAuth() {
   await getFirebaseAdminApp();
-  const { getAuth } = await import("firebase-admin/auth");
   return getAuth();
 }
