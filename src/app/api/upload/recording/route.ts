@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth } from "@/lib/firebaseAdmin";
 import { uploadFileAdmin } from "@/services/serverStorage";
 
 export async function POST(req: Request) {
@@ -22,7 +22,6 @@ export async function POST(req: Request) {
     }
 
     try {
-      const adminAuth = await getFirebaseAdminAuth();
       await adminAuth.verifyIdToken(token);
     } catch (err: any) {
       console.error("[Recording Upload Error] Firebase token verification failure:", err.message);

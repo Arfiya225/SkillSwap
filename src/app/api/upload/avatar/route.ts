@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth } from "@/lib/firebaseAdmin";
 import { uploadFileAdmin } from "@/services/serverStorage";
 
 export async function POST(req: Request) {
@@ -23,7 +23,6 @@ export async function POST(req: Request) {
 
     let decodedToken;
     try {
-      const adminAuth = await getFirebaseAdminAuth();
       decodedToken = await adminAuth.verifyIdToken(token);
       
       if (!decodedToken.uid) {
