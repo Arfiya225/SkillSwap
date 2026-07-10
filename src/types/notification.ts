@@ -7,7 +7,11 @@ export type NotificationType =
   | "verification_submitted"
   | "verification_approved"
   | "verification_rejected"
-  | "chat_message";
+  | "chat_message"
+  | "room_created"
+  | "assessment_generated"
+  | "assessment_passed"
+  | "certificate_issued";
 
 export interface AppNotification {
   id: string;

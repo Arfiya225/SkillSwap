@@ -110,7 +110,9 @@ export async function addResource(
   type: ResourceType,
   url: string,
   userId: string,
-  userName: string
+  userName: string,
+  learnerId?: string,
+  targetSkill?: string
 ): Promise<string> {
   try {
     const resourcesCol = collection(db, "learningRooms", roomId, "resources");
@@ -118,6 +120,8 @@ export async function addResource(
     
     const resourceData: Resource = {
       id: newDoc.id,
+      learnerId,
+      targetSkill,
       title: title.trim(),
       type,
       url: url.trim(),

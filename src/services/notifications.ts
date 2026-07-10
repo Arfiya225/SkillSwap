@@ -81,7 +81,11 @@ export async function createNotification(
       "meeting_scheduled",
       "chat_message",
       "verification_approved",
-      "verification_rejected"
+      "verification_rejected",
+      "room_created",
+      "assessment_generated",
+      "assessment_passed",
+      "certificate_issued"
     ];
 
     if (emailEvents.includes(type)) {
@@ -93,10 +97,14 @@ export async function createNotification(
         case "chat_message": eventName = "Chat Message Received"; break;
         case "verification_approved": eventName = "Verification Approved"; break;
         case "verification_rejected": eventName = "Verification Rejected"; break;
+        case "room_created": eventName = "Learning Room Created"; break;
+        case "assessment_generated": eventName = "Assessment Generated"; break;
+        case "assessment_passed": eventName = "Assessment Passed"; break;
+        case "certificate_issued": eventName = "Certificate Issued"; break;
       }
       
-      // Non-blocking call
-      sendEmailToUser(userId, eventName, message).catch(console.error);
+      // Await the email dispatch to prevent serverless isolate from dropping the floating promise
+      await sendEmailToUser(userId, eventName, message).catch(console.error);
     }
 
     return newDoc.id;

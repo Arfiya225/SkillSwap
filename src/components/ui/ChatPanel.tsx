@@ -13,6 +13,7 @@ interface ChatPanelProps {
   currentUserId: string;
   currentUserName: string;
   otherParticipants: string[];
+  disabled?: boolean;
 }
 
 export function ChatPanel({
@@ -20,6 +21,7 @@ export function ChatPanel({
   currentUserId,
   currentUserName,
   otherParticipants,
+  disabled = false,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,9 +93,11 @@ export function ChatPanel({
       </div>
 
       {/* Input Area */}
-      <div className="shrink-0">
-        <ChatInput onSendMessage={handleSendMessage} disabled={loading} />
-      </div>
+      {!disabled && (
+        <div className="shrink-0">
+          <ChatInput onSendMessage={handleSendMessage} disabled={loading} />
+        </div>
+      )}
     </GlassCard>
   );
 }

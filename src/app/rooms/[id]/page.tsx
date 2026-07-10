@@ -30,6 +30,14 @@ import { MeetingScheduler } from "@/components/ui/MeetingScheduler";
 import { StudyPlanCard } from "@/components/ui/StudyPlanCard";
 import { SessionSummaryCard } from "@/components/ui/SessionSummaryCard";
 import { ChatPanel } from "@/components/ui/ChatPanel";
+import { WhiteboardContainer } from "@/features/whiteboard/components/WhiteboardContainer";
+import { LearningRoadmap } from "@/features/validation/components/LearningRoadmap";
+import { AssessmentGenerator } from "@/features/validation/components/AssessmentGenerator";
+import { AssessmentCard } from "@/features/validation/components/AssessmentCard";
+import { FinalExamCard } from "@/features/validation/components/FinalExamCard";
+import { PeerValidationCard } from "@/features/validation/components/PeerValidationCard";
+import { CertificateCard } from "@/features/validation/components/CertificateCard";
+
 
 // Collaboration Services
 import {
@@ -59,6 +67,17 @@ import {
   subscribeToSessionSummaries,
   generateSessionSummary,
 } from "@/services/session-summary";
+import {
+  subscribeToTopics,
+  subscribeToAssessments,
+  subscribeToSubmissions,
+  subscribeToFinalAssessments,
+  subscribeToPeerValidations,
+  subscribeToCertificates,
+} from "@/services/validationService";
+import { completeRoom, archiveRoom, softDeleteRoom, restoreRoom } from "@/services/lifecycle";
+import { LearningTopic, Assessment, AssessmentSubmission, FinalAssessment, PeerValidation, Certificate } from "@/types/validation";
+
 
 import {
   BookOpen,
@@ -81,6 +100,10 @@ import {
   Sparkles,
   Map,
   MessageSquare,
+  PenTool,
+  GraduationCap,
+  Award,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -91,7 +114,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type RoomTab = "overview" | "chat" | "notes" | "resources" | "tasks" | "progress" | "activity" | "meetings" | "study-plan" | "summaries";
+type RoomTab = "overview" | "chat" | "notes" | "resources" | "tasks" | "progress" | "activity" | "meetings" | "study-plan" | "summaries" | "whiteboard" | "roadmap" | "assessments" | "final-exam" | "certificates";
 
 export default function RoomPage({ params }: PageProps) {
   return (
@@ -133,6 +156,25 @@ function RoomWorkspace({ params }: PageProps) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
   const [summaries, setSummaries] = useState<SessionSummary[]>([]);
+
+  // Validation States
+  const [topics, setTopics] = useState<LearningTopic[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [submissions, setSubmissions] = useState<AssessmentSubmission[]>([]);
+  const [finalAssessments, setFinalAssessments] = useState<FinalAssessment[]>([]);
+  const [peerValidations, setPeerValidations] = useState<PeerValidation[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  
+  const [generatingAssessment, setGeneratingAssessment] = useState(false);
+  const [evaluatingAssessment, setEvaluatingAssessment] = useState(false);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
+
+  // Lifecycle States
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
 
   // Meetings scheduler overlay state
   const [isMeetingSchedulerOpen, setIsMeetingSchedulerOpen] = useState(false);
@@ -217,7 +259,7 @@ function RoomWorkspace({ params }: PageProps) {
 
   // 3. Realtime subcollection subscriptions
   useEffect(() => {
-    if (!roomId || !room) return;
+    if (!roomId || !room || !user) return;
 
     const unsubResources = subscribeToResources(roomId, (data) => {
       setResources(data);
@@ -242,6 +284,13 @@ function RoomWorkspace({ params }: PageProps) {
     const unsubSummaries = subscribeToSessionSummaries(roomId, (data) => {
       setSummaries(data);
     });
+    
+    const unsubTopics = subscribeToTopics(roomId, setTopics);
+    const unsubAssessments = subscribeToAssessments(roomId, setAssessments);
+    const unsubSubmissions = subscribeToSubmissions(roomId, user.uid, setSubmissions);
+    const unsubFinals = subscribeToFinalAssessments(roomId, setFinalAssessments);
+    const unsubPeers = subscribeToPeerValidations(roomId, setPeerValidations);
+    const unsubCerts = subscribeToCertificates(roomId, setCertificates);
 
     return () => {
       unsubResources();
@@ -250,8 +299,88 @@ function RoomWorkspace({ params }: PageProps) {
       unsubMeetings();
       unsubStudyPlan();
       unsubSummaries();
+      unsubTopics();
+      unsubAssessments();
+      unsubSubmissions();
+      unsubFinals();
+      unsubPeers();
+      unsubCerts();
     };
-  }, [roomId, room]);
+  }, [roomId, room, user]);
+
+  // ==========================================
+  // LIFECYCLE OPERATIONS
+  // ==========================================
+  const handleCompleteRoom = async () => {
+    if (!roomId || !user || !room) return;
+    if (room.status === "completed" || room.status === "archived") return;
+    if (!confirm("Are you sure you want to mark this learning room as complete?")) return;
+    setIsCompleting(true);
+    try {
+      const isFullyComplete = await completeRoom(roomId, user.uid);
+      if (isFullyComplete) {
+        toast.success("Room marked as completed!");
+      } else {
+        toast.success("You marked the room as complete. Waiting for your partner to confirm.");
+      }
+      const data = await getLearningRoom(roomId);
+      setRoom(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to complete room");
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const handleArchiveRoom = async () => {
+    if (!roomId || !user) return;
+    if (!confirm("Are you sure you want to archive this room? It will become read-only.")) return;
+    setIsArchiving(true);
+    try {
+      await archiveRoom(roomId);
+      toast.success("Room archived");
+      const data = await getLearningRoom(roomId);
+      setRoom(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to archive room");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleRestoreRoom = async () => {
+    if (!roomId || !user) return;
+    if (!confirm("Restore this archived learning room?")) return;
+    setIsRestoring(true);
+    try {
+      await restoreRoom(roomId);
+      toast.success("Room restored successfully");
+      const data = await getLearningRoom(roomId);
+      setRoom(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to restore room");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!roomId || !user) return;
+    if (!confirm("Are you sure you want to delete this room? This action cannot be undone.")) return;
+    setIsDeleting(true);
+    try {
+      await softDeleteRoom(roomId, user.uid);
+      toast.success("Room deleted");
+      router.push("/dashboard/rooms");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete room");
+      setIsDeleting(false);
+    }
+  };
 
   // ==========================================
   // COLLABORATIVE FLOW ACTIONS
@@ -515,7 +644,7 @@ function RoomWorkspace({ params }: PageProps) {
             </div>
 
             {/* Swap Skills Ribbon */}
-            {room.swapRequestDetails && (
+            {room.swapRequestDetails && !room.exchangeSkills && (
               <div className="flex items-center gap-3 bg-slate-900/65 border border-white/5 px-4 py-2 rounded-2xl text-xs sm:text-sm font-semibold max-w-md">
                 <span className="text-emerald-400 truncate max-w-[120px]">
                   {room.swapRequestDetails.offeredSkill}
@@ -538,6 +667,11 @@ function RoomWorkspace({ params }: PageProps) {
               { id: "meetings", label: "Meetings", icon: Video },
               { id: "study-plan", label: "AI Study Path", icon: Map },
               { id: "summaries", label: "AI Summaries", icon: Sparkles },
+              { id: "whiteboard", label: "Whiteboard", icon: PenTool },
+              { id: "roadmap", label: "Roadmap", icon: Map },
+              { id: "assessments", label: "Assessments", icon: ClipboardList },
+              { id: "final-exam", label: "Final Exam", icon: Award },
+              { id: "certificates", label: "Certificates", icon: GraduationCap },
               { id: "notes", label: "Shared Notes", icon: FileText },
               { id: "resources", label: "Resources", icon: Paperclip },
               { id: "tasks", label: "Tasks", icon: CheckSquare },
@@ -591,6 +725,71 @@ function RoomWorkspace({ params }: PageProps) {
                         <Lock className="w-3.5 h-3.5 text-violet-400" /> Private Room
                       </span>
                     </div>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-900/80">
+                      <span className="text-slate-500 text-xs font-bold uppercase">Status</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border uppercase tracking-wider ${
+                        room.status === "completed" ? "bg-amber-500/10 text-amber-300 border-amber-500/20" :
+                        room.status === "archived" ? "bg-slate-500/10 text-slate-300 border-slate-500/20" :
+                        room.status === "deleted" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                        "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                      }`}>
+                        {room.status === "completed" ? "🏆 Completed" :
+                         room.status === "archived" ? "📦 Archived" :
+                         room.status === "deleted" ? "🗑 Deleted" :
+                         "🟢 Active"}
+                      </span>
+                    </div>
+                  </div>
+                </GlassCard>
+
+                {/* Room Settings */}
+                <GlassCard className="border border-white/5">
+                  <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-4 flex items-center gap-2">
+                    <ListFilter className="w-4 h-4 text-emerald-400" />
+                    <span>Room Settings</span>
+                  </h3>
+                  <div className="space-y-3">
+                    <GradientButton 
+                      onClick={handleCompleteRoom}
+                      loading={isCompleting}
+                      disabled={room.status === "archived" || room.status === "deleted" || (user ? room.completionStatus?.[user.uid] : false)}
+                      className="w-full text-xs py-2"
+                      variant="primary"
+                    >
+                      {room.status === "completed" ? "Course Completed" : (user && room.completionStatus?.[user.uid]) ? "Waiting for Partner..." : "Mark Learning Complete"}
+                    </GradientButton>
+
+                    {room.status === "archived" ? (
+                      <GradientButton 
+                        onClick={handleRestoreRoom}
+                        loading={isRestoring}
+                        disabled={false}
+                        className="w-full text-xs py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/30"
+                        variant="secondary"
+                      >
+                        Restore Room
+                      </GradientButton>
+                    ) : (
+                      <GradientButton 
+                        onClick={handleArchiveRoom}
+                        loading={isArchiving}
+                        disabled={room.status === "deleted" || room.status === "completed"}
+                        className="w-full text-xs py-2 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        variant="secondary"
+                      >
+                        Archive Room
+                      </GradientButton>
+                    )}
+
+                    <GradientButton 
+                      onClick={handleDeleteRoom}
+                      loading={isDeleting}
+                      disabled={room.status === "deleted"}
+                      className="w-full text-xs py-2 border-red-500/20 text-red-400 hover:bg-red-500/10"
+                      variant="secondary"
+                    >
+                      Delete Room
+                    </GradientButton>
                   </div>
                 </GlassCard>
 
@@ -635,6 +834,79 @@ function RoomWorkspace({ params }: PageProps) {
               {/* Center Overview & Recents */}
               <div className="lg:col-span-2 space-y-6">
                 
+                {/* Completion Summary Card */}
+                {room.status === "completed" && (
+                  <GlassCard className="border border-amber-500/30 bg-amber-950/20 mb-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                        <Award className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-amber-400">🎉 Learning Exchange Completed</h3>
+                        <p className="text-xs text-amber-200/60">
+                          {room.completedAt?.toDate?.()?.toLocaleDateString() || "Recently completed"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                       <div className="bg-slate-950/40 p-3 rounded-xl border border-white/5">
+                         <span className="block text-slate-500 mb-1">Topics Mastered</span>
+                         <span className="font-bold text-slate-200">{room.stats?.topicsCompleted || topics.filter(t => t.status === "completed").length}</span>
+                       </div>
+                       <div className="bg-slate-950/40 p-3 rounded-xl border border-white/5">
+                         <span className="block text-slate-500 mb-1">Certificates Earned</span>
+                         <span className="font-bold text-slate-200">{room.stats?.certificatesIssued || certificates.length}</span>
+                       </div>
+                    </div>
+                  </GlassCard>
+                )}
+                
+                {/* Two-Way Learning Path Widget */}
+                {room.exchangeSkills && user ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <GlassCard className="border border-emerald-500/20 bg-emerald-950/10">
+                      <h3 className="text-xs font-bold uppercase text-emerald-400 tracking-wider mb-4 flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        <span>My Learning Path</span>
+                      </h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 text-xs">Learning:</span>
+                          <span className="text-emerald-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.learnsSkill}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 text-xs">Progress:</span>
+                          <span className="text-slate-200 text-sm">{room.exchangeSkills[user.uid]?.progress || 0}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 text-xs">Mentor:</span>
+                          <span className="text-slate-200 text-sm">
+                            {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
+                          </span>
+                        </div>
+                      </div>
+                    </GlassCard>
+                    <GlassCard className="border border-violet-500/20 bg-violet-950/10">
+                      <h3 className="text-xs font-bold uppercase text-violet-400 tracking-wider mb-4 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4" />
+                        <span>My Teaching Path</span>
+                      </h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 text-xs">Teaching:</span>
+                          <span className="text-violet-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.teachesSkill}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 text-xs">Student:</span>
+                          <span className="text-slate-200 text-sm">
+                            {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
+                          </span>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </div>
+                ) : null}
+
                 {/* Visual completion card */}
                 <ProgressWidget tasks={tasks} />
 
@@ -668,6 +940,7 @@ function RoomWorkspace({ params }: PageProps) {
               currentUserId={user.uid}
               currentUserName={dbUser.name}
               otherParticipants={room.participants.filter(p => p !== user.uid)}
+              disabled={room.status === "archived" || room.status === "deleted"}
             />
           )}
 
@@ -691,10 +964,12 @@ function RoomWorkspace({ params }: PageProps) {
                   <p className="text-xs text-slate-400">Share references, code repositories, or reference guides.</p>
                 </div>
 
-                <GradientButton onClick={() => setIsResourceFormOpen(!isResourceFormOpen)} className="text-xs py-2 px-3.5">
-                  {isResourceFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                  <span>{isResourceFormOpen ? "Close panel" : "Add Resource"}</span>
-                </GradientButton>
+                {!((room.status === "archived") || (room.status === "deleted")) && (
+                  <GradientButton onClick={() => setIsResourceFormOpen(!isResourceFormOpen)} className="text-xs py-2 px-3.5">
+                    {isResourceFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{isResourceFormOpen ? "Close panel" : "Add Resource"}</span>
+                  </GradientButton>
+                )}
               </div>
 
               {/* Resource creation panel Form */}
@@ -839,10 +1114,12 @@ function RoomWorkspace({ params }: PageProps) {
                     </select>
                   </div>
 
-                  <GradientButton onClick={() => setIsTaskFormOpen(!isTaskFormOpen)} className="text-xs py-2 px-3.5">
-                    {isTaskFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                    <span>{isTaskFormOpen ? "Close panel" : "Create Task"}</span>
-                  </GradientButton>
+                  {!((room.status === "archived") || (room.status === "deleted")) && (
+                    <GradientButton onClick={() => setIsTaskFormOpen(!isTaskFormOpen)} className="text-xs py-2 px-3.5">
+                      {isTaskFormOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      <span>{isTaskFormOpen ? "Close panel" : "Create Task"}</span>
+                    </GradientButton>
+                  )}
                 </div>
               </div>
 
@@ -996,13 +1273,15 @@ function RoomWorkspace({ params }: PageProps) {
                   <h3 className="text-base font-bold text-slate-100">Live Workspace Sessions</h3>
                   <p className="text-xs text-slate-400">Schedule and manage face-to-face video syncs with your partner.</p>
                 </div>
-                <button
-                  onClick={() => setIsMeetingSchedulerOpen(true)}
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-violet-500/20 shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  Schedule Meet
-                </button>
+                {!((room.status === "archived") || (room.status === "deleted")) && (
+                  <button
+                    onClick={() => setIsMeetingSchedulerOpen(true)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-violet-500/20 shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Schedule Meet
+                  </button>
+                )}
               </div>
 
               {meetings.length === 0 ? (
@@ -1038,17 +1317,20 @@ function RoomWorkspace({ params }: PageProps) {
             <div className="space-y-6">
               <StudyPlanCard
                 studyPlan={studyPlan}
-                onGenerate={async (skill, currentLevel, targetLevel, weeklyHours) => {
-                  try {
-                    setGeneratingStudyPlan(true);
-                    await generateStudyPlan(roomId!, user?.uid || "", skill, currentLevel, targetLevel, weeklyHours);
-                  } catch (err: any) {
-                    console.error(err);
-                    toast.error(err.message || "Failed to generate study plan.");
-                  } finally {
-                    setGeneratingStudyPlan(false);
+                onGenerate={
+                  async (skill, currentLevel, targetLevel, weeklyHours) => {
+                    if (room.status === "archived" || room.status === "deleted") return;
+                    try {
+                      setGeneratingStudyPlan(true);
+                      await generateStudyPlan(roomId!, user?.uid || "", skill, currentLevel, targetLevel, weeklyHours);
+                    } catch (err: any) {
+                      console.error(err);
+                      toast.error(err.message || "Failed to generate study plan.");
+                    } finally {
+                      setGeneratingStudyPlan(false);
+                    }
                   }
-                }}
+                }
                 loading={generatingStudyPlan}
                 apiKeyMissing={geminiKeyMissing}
               />
@@ -1076,6 +1358,182 @@ function RoomWorkspace({ params }: PageProps) {
               />
             </div>
           )}
+
+          {/* =================================================== */}
+          {/* 10. WHITEBOARD TAB */}
+          {/* =================================================== */}
+          {activeTab === "whiteboard" && roomId && (
+            <WhiteboardContainer roomId={roomId} />
+          )}
+
+          {/* =================================================== */}
+          {/* 11. VALIDATION & CERTIFICATES */}
+          {/* =================================================== */}
+          {activeTab === "roadmap" && roomId && user && (
+            <LearningRoadmap 
+              roomId={roomId} 
+              topics={topics} 
+              currentUserId={user.uid} 
+              learnerId={room.participants.find(p => p !== user.uid) || ""}
+              targetSkill={room.exchangeSkills?.[room.participants.find(p => p !== user.uid) || ""]?.learnsSkill || ""}
+              readOnly={room.status === "archived" || room.status === "deleted"}
+            />
+          )}
+
+          {activeTab === "assessments" && roomId && user && (
+            <div className="space-y-6">
+              {!((room.status === "archived") || (room.status === "deleted")) && (
+                <AssessmentGenerator 
+                  roomId={roomId} 
+                  isTeacher={true} 
+                  loading={generatingAssessment}
+                  onGenerate={async (sources) => {
+                    setGeneratingAssessment(true);
+                    try {
+                      const res = await fetch("/api/assessments/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ roomId, sources, isFinal: false })
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      toast.success("Assessment generated!");
+                    } catch (err: any) {
+                      toast.error(err.message);
+                    } finally {
+                      setGeneratingAssessment(false);
+                    }
+                  }}
+                />
+              )}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {assessments.map(a => (
+                  <AssessmentCard 
+                    key={a.id} 
+                    assessment={a} 
+                    submission={submissions.find(s => s.assessmentId === a.id) || null}
+                    loading={evaluatingAssessment}
+                    onSubmit={async (answers) => {
+                      setEvaluatingAssessment(true);
+                      try {
+                        const res = await fetch("/api/assessments/evaluate", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ roomId, userId: user.uid, assessmentId: a.id, questions: a.questions, answers })
+                        });
+                        if (!res.ok) throw new Error(await res.text());
+                        toast.success("Assessment submitted!");
+                      } catch (err: any) {
+                        toast.error(err.message);
+                      } finally {
+                        setEvaluatingAssessment(false);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "final-exam" && roomId && user && (
+            <div className="space-y-6">
+              <FinalExamCard 
+                exam={finalAssessments[0] || null}
+                submission={submissions.find(s => s.isFinal) || null}
+                isTeacher={true}
+                loading={generatingAssessment || evaluatingAssessment}
+                onGenerate={async () => {
+                  setGeneratingAssessment(true);
+                  try {
+                    const res = await fetch("/api/assessments/generate", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ roomId, sources: {}, isFinal: true })
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    toast.success("Final Exam generated!");
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  } finally {
+                    setGeneratingAssessment(false);
+                  }
+                }}
+                onSubmit={async (answers) => {
+                   setEvaluatingAssessment(true);
+                   try {
+                     const res = await fetch("/api/assessments/evaluate", {
+                       method: "POST",
+                       headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify({ roomId, userId: user.uid, assessmentId: finalAssessments[0].id, questions: finalAssessments[0].questions, answers, isFinal: true })
+                     });
+                     if (!res.ok) throw new Error(await res.text());
+                     toast.success("Final Exam submitted!");
+                   } catch (err: any) {
+                     toast.error(err.message);
+                   } finally {
+                     setEvaluatingAssessment(false);
+                   }
+                }}
+                readOnly={room.status === "archived" || room.status === "deleted"}
+              />
+              <PeerValidationCard 
+                roomId={roomId}
+                isTeacher={true}
+                studentId={user.uid}
+                teacherId={user.uid}
+                validation={peerValidations[0] || null}
+              />
+            </div>
+          )}
+
+          {activeTab === "certificates" && roomId && user && (
+            <CertificateCard 
+              certificate={certificates.find(c => c.studentId === user.uid) || null}
+              loading={generatingCertificate}
+              canGenerate={
+                (() => {
+                  const passedPeers = peerValidations.filter(p => p.status === "approved").length > 0;
+                  const passedFinal = submissions.find(s => s.isFinal && s.score !== undefined && s.score >= 70);
+                  const weekly = submissions.filter(s => !s.isFinal && s.score !== undefined);
+                  const avg = weekly.length ? (weekly.reduce((acc, s) => acc + (s.score || 0), 0) / weekly.length) : 0;
+                  return passedPeers && !!passedFinal && avg >= 70;
+                })()
+              }
+              reason={
+                 peerValidations[0]?.status !== "approved" ? "Peer validation pending/rejected" :
+                 !submissions.find(s => s.isFinal && s.score !== undefined && s.score >= 70) ? "Final exam not passed" :
+                 "Requirements met"
+              }
+              onGenerate={async () => {
+                setGeneratingCertificate(true);
+                try {
+                   const finalScore = submissions.find(s => s.isFinal)?.score || 0;
+                   const level = finalScore >= 90 ? "Gold" : finalScore >= 80 ? "Silver" : "Bronze";
+                   const res = await fetch("/api/certificates/generate", {
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({
+                       roomId,
+                       userId: user.uid,
+                       teacherId: user.uid,
+                       skill: room?.swapRequestDetails?.offeredSkill || "Skill",
+                       score: finalScore,
+                       level
+                     })
+                   });
+                   if (!res.ok) throw new Error(await res.text());
+                   toast.success("Certificate generated successfully!");
+                } catch (err: any) {
+                   toast.error(err.message);
+                } finally {
+                   setGeneratingCertificate(false);
+                }
+              }}
+            />
+          )}
+
+
+
+
 
         </main>
 

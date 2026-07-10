@@ -66,6 +66,7 @@ export async function updateSwapRequestStatus(
     const swapRequestRef = doc(db, "swapRequests", requestId);
     let createdRoomId: string | null = null;
     let senderId: string | null = null;
+    let receiverId: string | null = null;
     let requestedSkill = "";
 
     await runTransaction(db, async (transaction) => {
@@ -80,6 +81,7 @@ export async function updateSwapRequestStatus(
       }
 
       senderId = swapData.senderId;
+      receiverId = swapData.receiverId;
       requestedSkill = swapData.requestedSkill;
 
       // 1. Update swap request status
@@ -100,17 +102,52 @@ export async function updateSwapRequestStatus(
             offeredSkill: swapData.offeredSkill,
             requestedSkill: swapData.requestedSkill,
           },
+          exchangeSkills: {
+            [swapData.senderId]: {
+              teachesSkill: swapData.offeredSkill,
+              learnsSkill: swapData.requestedSkill,
+              progress: 0,
+              assessmentPassed: false,
+              certificateIssued: false,
+            },
+            [swapData.receiverId]: {
+              teachesSkill: swapData.requestedSkill,
+              learnsSkill: swapData.offeredSkill,
+              progress: 0,
+              assessmentPassed: false,
+              certificateIssued: false,
+            }
+          }
         });
       }
     });
 
     // Notify sender when request is accepted
-    if (status === "accepted" && createdRoomId && senderId) {
+    if (status === "accepted" && createdRoomId && senderId && receiverId) {
       await createNotification(
         senderId,
         "Swap Proposal Accepted!",
         `Your swap request for "${requestedSkill}" has been accepted! Collaborative workspace is active.`,
         "request_accepted",
+        `/rooms/${createdRoomId}`
+      );
+
+      // Notify both participants that the room is created
+      const roomCreatedMessage = "Your learning room has been created and is ready for collaboration.";
+      
+      await createNotification(
+        senderId,
+        "Learning Room Created",
+        roomCreatedMessage,
+        "room_created",
+        `/rooms/${createdRoomId}`
+      );
+
+      await createNotification(
+        receiverId,
+        "Learning Room Created",
+        roomCreatedMessage,
+        "room_created",
         `/rooms/${createdRoomId}`
       );
     }
