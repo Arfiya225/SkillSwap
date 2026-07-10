@@ -1,38 +1,36 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+// @ts-expect-error - Bypass Next.js Turbopack debug bug in pdf-parse's index.js
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
-// Configure PDF.js for Node.js (Next.js API route) execution
-// This satisfies the library's requirement for a worker path, which allows it to 
-// correctly initialize the fake worker (runs synchronously on the main thread)
-// instead of attempting to spawn a browser Web Worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
-
-export async function extractPdfText(buffer: ArrayBuffer, url: string): Promise<string> {
+export async function extractPdfText(url: string): Promise<{ text: string; textLength: number; pageCount: number }> {
   try {
-    const data = new Uint8Array(buffer);
-    
-    // Disable fonts and rendering specifics since we only need text
-    const loadingTask = pdfjsLib.getDocument({
-      data,
-      useSystemFonts: true,
-      disableFontFace: true,
-      standardFontDataUrl: undefined
-    });
-
-    const pdf = await loadingTask.promise;
-    const numPages = pdf.numPages;
-    let fullText = '';
-
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + '\n\n';
+    // 1. Download PDF
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF: ${response.statusText}`);
     }
+    
+    // 2. Convert to Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    const dataBuffer = Buffer.from(arrayBuffer);
+    
+    // 3. Extract text (Standard pdf-parse 1.1.1, no workers, no pdfjs-dist dependency)
+    const data = await pdf(dataBuffer);
+    
+    const fullText = data.text || "";
+    const numPages = data.numpages || 0;
 
     // Required logging
-    console.log(`[PDF Extraction Success] URL: ${url} | Pages: ${numPages} | Text Length: ${fullText.length}`);
+    console.log(`[PDF Extraction Success] URL: ${url}`);
+    console.log(`Buffer Size: ${dataBuffer.length}`);
+    console.log(`Pages: ${numPages}`);
+    console.log(`Extracted Characters: ${fullText.length}`);
 
-    return fullText;
+    // 4. Return
+    return {
+      text: fullText,
+      textLength: fullText.length,
+      pageCount: numPages
+    };
   } catch (error) {
     console.error(`[PDF Extraction Failure] URL: ${url}`, error);
     throw error;

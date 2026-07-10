@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { collection, addDoc, getDocs, doc, getDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import mammoth from "mammoth";
 import { extractPdfText } from "@/utils/pdfExtractor";
@@ -55,6 +55,11 @@ export async function POST(request: Request) {
     const { roomId, learnerId, sources, isFinal } = await request.json();
 
     if (!roomId || !learnerId) {
+      console.error("---- 400 ERROR: Missing roomId or learnerId ----");
+      console.error("roomId:", roomId);
+      console.error("learnerId:", learnerId);
+      console.error("isFinal:", isFinal);
+      console.error("-------------------------------------------------");
       return NextResponse.json({ error: "Missing roomId or learnerId" }, { status: 400 });
     }
 
@@ -83,41 +88,73 @@ export async function POST(request: Request) {
     let notesContent = "";
     let topicsContent = "";
 
+    // Diagnostics
+    let totalTopicsFound = 0;
+    let completedTopicsFound = 0;
+    let totalResourcesFound = 0;
+    const resourceDiagnostics: any[] = [];
+
     // PRIORITY 1: RESOURCES
     if (sources.resources || isFinal) {
       const rSnap = await getDocs(collection(db, "learningRooms", roomId, "resources"));
-      const docs = rSnap.docs.map((d) => d.data());
+      const docs = rSnap.docs.map((d) => ({ ...d.data(), docId: d.id } as any));
+      totalResourcesFound = docs.length;
+
       for (const res of docs) {
-        // Only include resources for this learner if learnerId is set, or if it's a legacy resource (no learnerId)
-        if (res.learnerId && res.learnerId !== learnerId) continue;
+        resourceDiagnostics.push({
+          id: res.id || res.docId,
+          title: res.title,
+          assignedTo: res.assignedTo,
+          learnerId: res.learnerId,
+          targetSkill: res.targetSkill,
+          skill: res.skill,
+          type: res.type,
+          url: res.url
+        });
+
+        // Filter: Must belong to current learner
+        const owner = res.assignedTo || res.learnerId;
+        if (owner && owner !== learnerId) continue;
         
-        if (res.type === "pdf" && res.url) {
+        if (res.extractedText) {
+          console.log(`Using pre-extracted text for: ${res.title} | Length: ${res.extractedText.length}`);
+          resourceContent += `${res.extractedText}\n\n`;
+        } else if (res.type === "pdf" && res.url) {
           try {
-             const resp = await fetch(res.url);
-             if (!resp.ok) {
-                 console.error(`Failed to fetch PDF from ${res.url}. Status: ${resp.status}`);
-                 continue;
+             console.log(`Attempting PDF extraction for ${res.title}...`);
+             const extracted = await extractPdfText(res.url);
+             resourceContent += `${extracted.text}\n\n`;
+             
+             const docIdToUpdate = res.id || res.docId;
+             if (docIdToUpdate) {
+               const resDocRef = doc(db, "learningRooms", roomId, "resources", docIdToUpdate);
+               await updateDoc(resDocRef, {
+                   extractedText: extracted.text,
+                   textLength: extracted.textLength
+               });
+               console.log(`Saved extracted text to Firestore for ${res.title}`);
              }
-             
-             const contentType = resp.headers.get("content-type") || "";
-             console.log(`Parsing PDF Resource -> URL: ${res.url} | Content-Type: ${contentType}`);
-             
-             if (!contentType.includes("application/pdf") && !contentType.includes("application/octet-stream")) {
-                 console.warn(`Warning: Resource URL ${res.url} does not have application/pdf content type. Got ${contentType}. Will attempt to parse anyway.`);
-             }
-             
-             const buffer = await resp.arrayBuffer();
-             const extractedText = await extractPdfText(buffer, res.url);
-             resourceContent += `${extractedText}\n\n`;
           } catch(e) {
-             console.error(`PDF extraction failed for resource ${res.title} (${res.url}):`, e);
+             console.error(`Legacy PDF extraction failed for ${res.title}:`, e);
           }
         } else if (res.type === "document" && res.url) {
           try {
              const resp = await fetch(res.url);
-             const buffer = await resp.arrayBuffer();
-             const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
-             resourceContent += `${result.value}\n\n`;
+             if (resp.ok) {
+                 const buffer = await resp.arrayBuffer();
+                 const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
+                 resourceContent += `${result.value}\n\n`;
+                 
+                 const docIdToUpdate = res.id || res.docId;
+                 if (docIdToUpdate) {
+                   const resDocRef = doc(db, "learningRooms", roomId, "resources", docIdToUpdate);
+                   await updateDoc(resDocRef, {
+                       extractedText: result.value,
+                       textLength: result.value.length
+                   });
+                   console.log(`Saved extracted document text to Firestore for ${res.title}`);
+                 }
+             }
           } catch(e) {
              console.error("DOCX parse error:", e);
           }
@@ -139,21 +176,48 @@ export async function POST(request: Request) {
     // PRIORITY 3: COMPLETED TOPICS
     if (sources.topics || isFinal) {
       const tSnap = await getDocs(collection(db, "learningTopics"));
-      const topics = tSnap.docs.filter(d => 
-        d.data().roomId === roomId && 
+      const allRoomTopics = tSnap.docs.filter(d => d.data().roomId === roomId);
+      totalTopicsFound = allRoomTopics.length;
+
+      const completedTopics = allRoomTopics.filter(d => 
         d.data().status === "completed" &&
-        (!d.data().learnerId || d.data().learnerId === learnerId) // Only topics for this learner or legacy
-      ).map(d => d.data().title).join("\n");
-      if (topics) {
-         topicsContent = topics;
+        (!d.data().learnerId || d.data().learnerId === learnerId) // Only topics for this learner
+      );
+      
+      completedTopicsFound = completedTopics.length;
+      
+      const topicsText = completedTopics.map(d => d.data().title).join("\n");
+      if (topicsText) {
+         topicsContent = topicsText;
       }
     }
 
     const actualContentLength = resourceContent.length + notesContent.length + topicsContent.length;
 
+    // Output all diagnostics requested by user
+    console.log("---- Assessment Generation Diagnostics ----");
+    console.log("Current User (learnerId):", learnerId);
+    console.log("Learning Skill:", targetSkill);
+    console.log("Total Topics Found:", totalTopicsFound);
+    console.log("Resources Found:", resourceDiagnostics.filter(r => (r.assignedTo || r.learnerId) === learnerId || !(r.assignedTo || r.learnerId)).length);
+    console.log("Topics Found:", completedTopicsFound);
+    console.log("Total Extracted Characters:", resourceContent.length);
+    console.log("Actual Content Length:", actualContentLength);
+    console.log("-------------------------------------------");
+
     // VALIDATION LAYER
+    if (totalResourcesFound === 0 || resourceDiagnostics.filter(r => (r.assignedTo || r.learnerId) === learnerId || !(r.assignedTo || r.learnerId)).length === 0) {
+       return NextResponse.json({ 
+         error: "Upload at least one resource for this learning path.",
+         details: { resourcesFound: 0 }
+       }, { status: 400 });
+    }
+
     if (actualContentLength < 500) {
-       return NextResponse.json({ error: "Insufficient study material available for assessment generation." }, { status: 400 });
+       return NextResponse.json({ 
+         error: "More study material is required before an assessment can be generated.",
+         details: { actualContentLength, required: 500 }
+       }, { status: 400 });
     }
 
     const learningContextText = `=================================
@@ -186,22 +250,36 @@ ${topicsContent || "None"}
     console.log("ASSESSMENT_CONTEXT", prompt.substring(0, 500));
     console.log("-------------------------------------");
 
-    const response = await fetch(
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    };
+
+    let response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
+        body: JSON.stringify(payload)
       }
     );
 
     if (!response.ok) {
-       const err = await response.text();
-       console.error("Gemini failed:", err);
-       return NextResponse.json({ error: "Gemini API failed" }, { status: 500 });
+       console.warn(`gemini-2.5-flash failed with status ${response.status}. Attempting fallback to gemini-2.0-flash...`);
+       response = await fetch(
+         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+         {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(payload)
+         }
+       );
+       
+       if (!response.ok) {
+           const err = await response.text();
+           console.error("Gemini API (both primary and fallback) failed:", err);
+           return NextResponse.json({ error: "AI assessment service is temporarily busy. Please try again in a few minutes." }, { status: 500 });
+       }
     }
 
     const data = await response.json();

@@ -31,7 +31,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 /**
  * Upload a resource to the Next.js API proxy and return its public URL.
  */
-export async function uploadResource(roomId: string, file: File): Promise<string> {
+export async function uploadResource(roomId: string, file: File): Promise<{ url: string; extractedText?: string; textLength?: number }> {
   if (!auth.currentUser) throw new Error("auth.currentUser is null");
   const token = await auth.currentUser.getIdToken();
   if (!token) throw new Error("getIdToken() returned empty");
@@ -54,7 +54,7 @@ export async function uploadResource(roomId: string, file: File): Promise<string
     throw new Error(errorMsg);
   }
 
-  return data.url;
+  return data;
 }
 
 /**

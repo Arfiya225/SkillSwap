@@ -84,7 +84,21 @@ export async function POST(req: Request) {
     const path = `${roomId}/${uniqueName}`;
     const publicUrl = await uploadFileAdmin("resources", path, file);
 
-    return NextResponse.json({ url: publicUrl });
+    let extractedText = "";
+    let textLength = 0;
+
+    if (file.type === "application/pdf") {
+      try {
+        const { extractPdfText } = await import("@/utils/pdfExtractor");
+        const extracted = await extractPdfText(publicUrl);
+        extractedText = extracted.text;
+        textLength = extracted.textLength;
+      } catch (extractErr) {
+        console.error("Failed to extract PDF text during upload:", extractErr);
+      }
+    }
+
+    return NextResponse.json({ url: publicUrl, extractedText, textLength });
   } catch (error: any) {
     console.error("[Resource Upload Error] Supabase upload error:", error);
     return NextResponse.json(

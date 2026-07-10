@@ -75,7 +75,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({ certificate, o
       {canGenerate ? (
         <>
           <p className="text-sm text-slate-400 mt-2 mb-6 max-w-md mx-auto">
-            Congratulations! You have met all requirements. You passed the weekly assessments, aced the final exam, and received your teacher&apos;s approval.
+            Congratulations! You have met all requirements. You passed the final exam and your certificate is ready.
           </p>
           <GradientButton onClick={onGenerate} loading={loading} className="px-8 py-3 text-base">
             Generate Certificate
@@ -89,15 +89,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({ certificate, o
           <ul className="text-xs text-slate-400 text-left space-y-2">
             <li className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-slate-600 shrink-0" />
-              Weekly Assessment Average &gt;= 70%
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-slate-600 shrink-0" />
               Final Exam Score &gt;= 70%
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-slate-600 shrink-0" />
-              Teacher Peer Validation Approved
             </li>
           </ul>
           {reason && (

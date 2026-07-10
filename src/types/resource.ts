@@ -4,12 +4,17 @@ export type ResourceType = "pdf" | "document" | "github" | "link";
 
 export interface Resource {
   id: string;
-  learnerId?: string; // Optional for backward compatibility with older resources
-  targetSkill?: string; // Optional for backward compatibility
+  learnerId?: string; // Legacy
+  targetSkill?: string; // Legacy
+  assignedTo?: string; // New field
+  skill?: string; // New field
   title: string;
   type: ResourceType;
   url: string;
   uploadedBy: string;
   uploadedByName: string;
   uploadedAt: Timestamp | null;
+  extractedText?: string;
+  textLength?: number;
+  fileName?: string;
 }

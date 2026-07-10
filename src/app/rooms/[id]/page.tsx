@@ -197,6 +197,7 @@ function RoomWorkspace({ params }: PageProps) {
   const [resourceType, setResourceType] = useState<ResourceType>("link");
   const [resourceUrl, setResourceUrl] = useState("");
   const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceTarget, setResourceTarget] = useState<"self" | "partner">("self");
   const [creatingResource, setCreatingResource] = useState(false);
 
   // Filters
@@ -501,7 +502,7 @@ function RoomWorkspace({ params }: PageProps) {
   // --- Resource Operations ---
   const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomId || !user || !dbUser) return;
+    if (!roomId || !user || !dbUser || !room) return;
     if (!resourceTitle.trim()) {
       toast.error("Resource title is required");
       return;
@@ -511,17 +512,45 @@ function RoomWorkspace({ params }: PageProps) {
     const toastId = toast.loading("Adding resource...");
     try {
       let finalUrl = resourceUrl;
+      let extractedText: string | undefined;
+      let textLength: number | undefined;
 
       // Handle raw file uploads if needed
       if ((resourceType === "pdf" || resourceType === "document") && resourceFile) {
-        finalUrl = await uploadResourceFile(roomId, resourceFile);
+        const result = await uploadResourceFile(roomId, resourceFile) as any;
+        finalUrl = result.url;
+        extractedText = result.extractedText;
+        textLength = result.textLength;
       }
 
       if (!finalUrl.trim()) {
         throw new Error("A valid URL or uploaded file is required");
       }
 
-      await addResource(roomId, resourceTitle, resourceType, finalUrl, user.uid, dbUser.name);
+      let selectedLearnerId = user.uid;
+      let selectedTargetSkill = room.exchangeSkills?.[user.uid]?.learnsSkill || "";
+
+      if (resourceTarget === "partner") {
+        const partnerId = room.participants.find(p => p !== user.uid);
+        if (partnerId) {
+          selectedLearnerId = partnerId;
+          selectedTargetSkill = room.exchangeSkills?.[partnerId]?.learnsSkill || "";
+        }
+      }
+
+      await addResource(
+        roomId, 
+        resourceTitle, 
+        resourceType, 
+        finalUrl, 
+        user.uid, 
+        dbUser.name, 
+        selectedLearnerId, 
+        selectedTargetSkill,
+        extractedText,
+        textLength,
+        resourceFile ? resourceFile.name : undefined
+      );
 
       await logActivity(
         roomId,
@@ -869,20 +898,74 @@ function RoomWorkspace({ params }: PageProps) {
                         <GraduationCap className="w-4 h-4" />
                         <span>My Learning Path</span>
                       </h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-xs">Learning:</span>
-                          <span className="text-emerald-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.learnsSkill}</span>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Learning:</span>
+                            <span className="text-emerald-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.learnsSkill}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Mentor:</span>
+                            <span className="text-slate-200 text-sm">
+                              {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Progress:</span>
+                            <span className="text-slate-200 text-sm">{room.exchangeSkills[user.uid]?.progress || 0}%</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-xs">Progress:</span>
-                          <span className="text-slate-200 text-sm">{room.exchangeSkills[user.uid]?.progress || 0}%</span>
+
+                        {/* Assessment Readiness Widget */}
+                        <div className="bg-slate-900/50 p-3 rounded-xl border border-white/5 space-y-2">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assessment Readiness</h4>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Resources:</span>
+                            <span className="text-slate-300 font-bold">{resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).length}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Topics:</span>
+                            <span className="text-slate-300 font-bold">{topics.filter(t => t.status === "completed" && (!t.learnerId || t.learnerId === user.uid)).length}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Content Length:</span>
+                            <span className="text-slate-300 font-bold">
+                              {resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).reduce((acc, r) => acc + (r.textLength || 0), 0)} chars
+                            </span>
+                          </div>
+                          <div className="pt-2 mt-2 border-t border-white/5 flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-medium">Status:</span>
+                            {resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).length === 0 ? (
+                              <span className="text-amber-400 font-bold">UPLOAD RESOURCES FIRST</span>
+                            ) : resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).reduce((acc, r) => acc + (r.textLength || 0), 0) < 500 ? (
+                              <span className="text-amber-400 font-bold">NEED MORE CONTENT</span>
+                            ) : (
+                              <span className="text-emerald-400 font-bold">READY</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-xs">Mentor:</span>
-                          <span className="text-slate-200 text-sm">
-                            {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
-                          </span>
+
+                        {/* Certificate Eligibility Widget */}
+                        <div className="bg-slate-900/50 p-3 rounded-xl border border-white/5 space-y-2">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Certificate Requirements</h4>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Assessment Score:</span>
+                            <span className="text-slate-300 font-bold">{finalAssessments.find(a => a.learnerId === user.uid) ? "Passed" : "Required"}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Resources:</span>
+                            <span className="text-slate-300 font-bold">{resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).length > 0 ? "✓" : "Required"}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Completed Topics:</span>
+                            <span className="text-slate-300 font-bold">{topics.filter(t => t.status === "completed" && (!t.learnerId || t.learnerId === user.uid)).length > 0 ? "✓" : "Required"}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-4">
+                           <GradientButton onClick={() => setActiveTab("resources")} className="flex-1 py-2 text-xs">Resources</GradientButton>
+                           <GradientButton onClick={() => setActiveTab("roadmap")} className="flex-1 py-2 text-xs" variant="secondary">Roadmap</GradientButton>
+                           <GradientButton onClick={() => setActiveTab("assessments")} className="flex-1 py-2 text-xs">Assessment</GradientButton>
                         </div>
                       </div>
                     </GlassCard>
@@ -891,20 +974,68 @@ function RoomWorkspace({ params }: PageProps) {
                         <BookOpen className="w-4 h-4" />
                         <span>My Teaching Path</span>
                       </h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-xs">Teaching:</span>
-                          <span className="text-violet-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.teachesSkill}</span>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Teaching:</span>
+                            <span className="text-violet-300 font-bold text-sm">{room.exchangeSkills[user.uid]?.teachesSkill}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Student:</span>
+                            <span className="text-slate-200 text-sm">
+                              {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-xs">Student Progress:</span>
+                            <span className="text-slate-200 text-sm">
+                              {room.exchangeSkills[room.participants.find(p => p !== user.uid) || ""]?.progress || 0}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-xs">Student:</span>
-                          <span className="text-slate-200 text-sm">
-                            {room.participantProfiles?.[room.participants.find(p => p !== user.uid) || ""]?.name || "Participant"}
-                          </span>
+
+                        <div className="flex gap-2 mt-4">
+                           <GradientButton onClick={() => setActiveTab("resources")} className="flex-1 py-2 text-xs">Upload Resource</GradientButton>
+                           <GradientButton onClick={() => setActiveTab("roadmap")} className="flex-1 py-2 text-xs" variant="secondary">Add Topic</GradientButton>
                         </div>
                       </div>
                     </GlassCard>
                   </div>
+                ) : null}
+
+                {/* Development Debug Panel */}
+                {room.exchangeSkills && user ? (
+                  <details className="mb-6 bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden text-xs">
+                    <summary className="p-3 font-mono text-slate-400 cursor-pointer hover:bg-slate-800/50 select-none">
+                      Development Debug Panel
+                    </summary>
+                    <div className="p-4 border-t border-slate-800/50 space-y-2 font-mono text-slate-300">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Current User:</span>
+                        <span>{user.uid}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Learning Skill:</span>
+                        <span>{room.exchangeSkills[user.uid]?.learnsSkill}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Resources Found:</span>
+                        <span>{resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Topics Found:</span>
+                        <span>{topics.filter(t => t.status === "completed" && (!t.learnerId || t.learnerId === user.uid)).length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Content Length:</span>
+                        <span>{resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).reduce((acc, r) => acc + (r.textLength || 0), 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-400 font-bold mt-2 pt-2 border-t border-slate-700/50">
+                        <span>Assessment Ready:</span>
+                        <span>{resources.filter(r => (r.assignedTo || r.learnerId) === user.uid).reduce((acc, r) => acc + (r.textLength || 0), 0) >= 500 ? "TRUE" : "FALSE"}</span>
+                      </div>
+                    </div>
+                  </details>
                 ) : null}
 
                 {/* Visual completion card */}
@@ -1011,6 +1142,18 @@ function RoomWorkspace({ params }: PageProps) {
                       </div>
                     </div>
 
+                    <div className="space-y-1 mt-4 mb-4">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Add Resource To:</label>
+                      <select
+                        value={resourceTarget}
+                        onChange={(e) => setResourceTarget(e.target.value as "self" | "partner")}
+                        className="w-full px-3 py-2 text-xs rounded-xl glass-input font-medium bg-slate-900"
+                      >
+                        <option value="self">My Learning Path</option>
+                        <option value="partner">Partner Learning Path</option>
+                      </select>
+                    </div>
+
                     {/* URL link inputs */}
                     {resourceType === "link" || resourceType === "github" ? (
                       <div className="space-y-1">
@@ -1080,7 +1223,7 @@ function RoomWorkspace({ params }: PageProps) {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {resources.map((res) => (
-                    <ResourceCard key={res.id} resource={res} onDelete={handleDeleteResource} />
+                    <ResourceCard key={res.id} resource={res} participantProfiles={room.participantProfiles} onDelete={handleDeleteResource} />
                   ))}
                 </div>
               )}
@@ -1370,14 +1513,34 @@ function RoomWorkspace({ params }: PageProps) {
           {/* 11. VALIDATION & CERTIFICATES */}
           {/* =================================================== */}
           {activeTab === "roadmap" && roomId && user && (
-            <LearningRoadmap 
-              roomId={roomId} 
-              topics={topics} 
-              currentUserId={user.uid} 
-              learnerId={room.participants.find(p => p !== user.uid) || ""}
-              targetSkill={room.exchangeSkills?.[room.participants.find(p => p !== user.uid) || ""]?.learnsSkill || ""}
-              readOnly={room.status === "archived" || room.status === "deleted"}
-            />
+            <div className="space-y-12">
+              <div>
+                <h2 className="text-xl font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                  <GraduationCap className="w-6 h-6" /> What I&apos;m Learning
+                </h2>
+                <LearningRoadmap 
+                  roomId={roomId} 
+                  topics={topics.filter(t => !t.learnerId || t.learnerId === user.uid)} 
+                  currentUserId={user.uid} 
+                  learnerId={user.uid}
+                  targetSkill={room.exchangeSkills?.[user.uid]?.learnsSkill || ""}
+                  readOnly={room.status === "archived" || room.status === "deleted"}
+                />
+              </div>
+              <div className="pt-8 border-t border-white/5">
+                <h2 className="text-xl font-bold text-violet-400 mb-4 flex items-center gap-2">
+                  <BookOpen className="w-6 h-6" /> What I&apos;m Teaching
+                </h2>
+                <LearningRoadmap 
+                  roomId={roomId} 
+                  topics={topics.filter(t => t.learnerId === (room.participants.find(p => p !== user.uid) || ""))} 
+                  currentUserId={user.uid} 
+                  learnerId={room.participants.find(p => p !== user.uid) || ""}
+                  targetSkill={room.exchangeSkills?.[user.uid]?.teachesSkill || ""}
+                  readOnly={room.status === "archived" || room.status === "deleted"}
+                />
+              </div>
+            </div>
           )}
 
           {activeTab === "assessments" && roomId && user && (
@@ -1393,7 +1556,7 @@ function RoomWorkspace({ params }: PageProps) {
                       const res = await fetch("/api/assessments/generate", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ roomId, sources, isFinal: false })
+                        body: JSON.stringify({ roomId, sources, isFinal: false, learnerId: user.uid })
                       });
                       if (!res.ok) throw new Error(await res.text());
                       toast.success("Assessment generated!");
@@ -1447,7 +1610,7 @@ function RoomWorkspace({ params }: PageProps) {
                     const res = await fetch("/api/assessments/generate", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ roomId, sources: {}, isFinal: true })
+                      body: JSON.stringify({ roomId, sources: {}, isFinal: true, learnerId: user.uid })
                     });
                     if (!res.ok) throw new Error(await res.text());
                     toast.success("Final Exam generated!");
@@ -1491,17 +1654,12 @@ function RoomWorkspace({ params }: PageProps) {
               loading={generatingCertificate}
               canGenerate={
                 (() => {
-                  const passedPeers = peerValidations.filter(p => p.status === "approved").length > 0;
                   const passedFinal = submissions.find(s => s.isFinal && s.score !== undefined && s.score >= 70);
-                  const weekly = submissions.filter(s => !s.isFinal && s.score !== undefined);
-                  const avg = weekly.length ? (weekly.reduce((acc, s) => acc + (s.score || 0), 0) / weekly.length) : 0;
-                  return passedPeers && !!passedFinal && avg >= 70;
+                  return !!passedFinal;
                 })()
               }
               reason={
-                 peerValidations[0]?.status !== "approved" ? "Peer validation pending/rejected" :
-                 !submissions.find(s => s.isFinal && s.score !== undefined && s.score >= 70) ? "Final exam not passed" :
-                 "Requirements met"
+                 !submissions.find(s => s.isFinal && s.score !== undefined && s.score >= 70) ? "Final exam not passed" : "Requirements met"
               }
               onGenerate={async () => {
                 setGeneratingCertificate(true);
@@ -1513,9 +1671,9 @@ function RoomWorkspace({ params }: PageProps) {
                      headers: { "Content-Type": "application/json" },
                      body: JSON.stringify({
                        roomId,
-                       userId: user.uid,
-                       teacherId: user.uid,
-                       skill: room?.swapRequestDetails?.offeredSkill || "Skill",
+                       studentId: user.uid,
+                       mentorId: room.participants.find(p => p !== user.uid) || user.uid,
+                       skill: room.exchangeSkills?.[user.uid]?.learnsSkill || room?.swapRequestDetails?.offeredSkill || "Skill",
                        score: finalScore,
                        level
                      })

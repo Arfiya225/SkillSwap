@@ -8,7 +8,6 @@ import {
   FileText,
   ExternalLink,
   Trash2,
-  User,
   Calendar,
   Loader2,
 } from "lucide-react";
@@ -16,18 +15,23 @@ import { GithubIcon } from "@/components/icons/BrandIcons";
 
 interface ResourceCardProps {
   resource: Resource;
+  participantProfiles?: Record<string, { name: string }>;
   onDelete: (id: string) => Promise<void>;
 }
 
 export const ResourceCard: React.FC<ResourceCardProps> = ({
   resource,
+  participantProfiles = {},
   onDelete,
 }) => {
   const { user } = useAuth();
   const [deleting, setDeleting] = useState(false);
-  const { id, title, type, url, uploadedBy, uploadedByName, uploadedAt } = resource;
+  const { id, title, type, url, uploadedBy, uploadedByName, uploadedAt, assignedTo, skill, learnerId, targetSkill } = resource;
 
   const isOwner = user?.uid === uploadedBy;
+  const resolvedAssignedTo = assignedTo || learnerId;
+  const resolvedSkill = skill || targetSkill;
+  const assignedToName = resolvedAssignedTo ? participantProfiles[resolvedAssignedTo]?.name || "Unknown User" : "Legacy";
 
   // Format upload date
   const dateStr = uploadedAt?.toDate
@@ -117,14 +121,26 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
         )}
       </div>
 
+      {/* Explicit Metadata Section as per UX Refactor */}
+      <div className="bg-slate-900/50 p-3 rounded-xl border border-white/5 text-xs text-slate-300 space-y-1.5 mt-2">
+         <div className="flex justify-between">
+           <span className="text-slate-500">Uploaded By:</span>
+           <span className="font-medium truncate max-w-[120px]" title={uploadedByName}>{uploadedByName}</span>
+         </div>
+         <div className="flex justify-between">
+           <span className="text-slate-500">Assigned To:</span>
+           <span className="font-medium truncate max-w-[120px]" title={assignedToName}>{assignedToName}</span>
+         </div>
+         <div className="flex justify-between">
+           <span className="text-slate-500">Skill:</span>
+           <span className="font-bold text-emerald-400 truncate max-w-[120px]" title={resolvedSkill}>{resolvedSkill || "Unknown"}</span>
+         </div>
+      </div>
+
       {/* Metadata Bottom Rows */}
       <div className="flex flex-col gap-3 pt-3 border-t border-slate-900/60 mt-auto">
         <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <div className="flex items-center gap-1">
-            <User className="w-3.5 h-3.5 text-slate-500" />
-            <span className="truncate max-w-[110px]">{uploadedByName}</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 ml-auto">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <span>{dateStr}</span>
           </div>

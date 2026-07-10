@@ -111,29 +111,37 @@ export async function addResource(
   url: string,
   userId: string,
   userName: string,
-  learnerId?: string,
-  targetSkill?: string
+  assignedTo: string,
+  skill: string,
+  extractedText?: string,
+  textLength?: number,
+  fileName?: string
 ): Promise<string> {
   try {
     const resourcesCol = collection(db, "learningRooms", roomId, "resources");
     const newDoc = doc(resourcesCol);
     
-    const resourceData: Resource = {
+    const resourceData: any = {
       id: newDoc.id,
-      learnerId,
-      targetSkill,
       title: title.trim(),
       type,
       url: url.trim(),
       uploadedBy: userId,
       uploadedByName: userName,
-      uploadedAt: null, // setDoc with serverTimestamp next
+      assignedTo,
+      skill,
+      uploadedAt: serverTimestamp(),
     };
 
-    await setDoc(newDoc, {
-      ...resourceData,
-      uploadedAt: serverTimestamp(),
-    });
+    if (extractedText) resourceData.extractedText = extractedText;
+    if (textLength !== undefined) resourceData.textLength = textLength;
+    if (fileName) resourceData.fileName = fileName;
+
+    // Backward compatibility mappings
+    resourceData.learnerId = assignedTo;
+    resourceData.targetSkill = skill;
+
+    await setDoc(newDoc, resourceData);
 
     return newDoc.id;
   } catch (error) {
@@ -164,7 +172,7 @@ export async function deleteResource(
 export async function uploadResourceFile(
   roomId: string,
   file: File
-): Promise<string> {
+): Promise<{ url: string; extractedText?: string; textLength?: number }> {
   try {
     return await uploadResource(roomId, file);
   } catch (error) {

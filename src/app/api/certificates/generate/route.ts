@@ -8,7 +8,16 @@ import { createNotification } from "@/services/notifications";
 
 export async function POST(request: Request) {
   try {
-    const { roomId, studentId, mentorId, skill, score, level } = await request.json();
+    const body = await request.json();
+    console.log("CERTIFICATE REQUEST BODY:", body);
+    
+    const { roomId, studentId, mentorId, skill, score, level, learnerId, assessmentId } = body;
+    
+    console.log("CERTIFICATE REQUIRED FIELDS:", {
+      roomId,
+      learnerId: learnerId || studentId,
+      assessmentId
+    });
 
     if (!roomId || !studentId || !mentorId || !skill || score === undefined || !level) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
